@@ -3,6 +3,21 @@ import c4d
 from c4d import documents
 
 
+# Action handlers run on C4D main thread (invoked by tasks.process_tasks)
+def _as_bool(val, default=None):
+    try:
+        if isinstance(val, bool):
+            return val
+        s = str(val).strip().lower()
+        if s in ("1", "true", "yes", "on"):
+            return True
+        if s in ("0", "false", "no", "off"):
+            return False
+    except Exception:
+        pass
+    return default
+
+
 def iter_objects(root):
     """Depth-first traversal starting from root object."""
     op = root

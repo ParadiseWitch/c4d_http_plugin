@@ -5,8 +5,9 @@
 - 默认主机/端口：`127.0.0.1:8090`
 - 路由：
   - `GET /ping` → 健康检查，返回 `pong`
-  - `GET /hide_joint` → 隐藏所有关节/骨骼（同步：完成后返回 `{visible:false}`）
-  - `GET /show_joint` → 显示所有关节/骨骼（同步：完成后返回 `{visible:true}`）
+  - `GET /show_joint?isShow=true|false` → 控制所有关节/骨骼显隐（同步），返回 `{visible:true|false}`
+  - `GET /show_polygon?isShow=true|false` → 控制所有多边形对象显隐（同步），返回 `{visible:true|false}`
+  - `GET /open_project?path=...` → 打开指定 C4D 文件（会关闭之前的文档）
 - 同步行为：所有变更路由在 C4D 主线程执行并完成后才返回响应。
 - 菜单：在“Plugins > HTTP Control: Start/Stop”切换服务器状态。
  - 配置环境变量：`C4D_HTTP_HOST`、`C4D_HTTP_PORT`
@@ -22,8 +23,10 @@
 
 - 使用浏览器或 curl 访问：
   - `http://127.0.0.1:8090/ping`
-  - `http://127.0.0.1:8090/hide_joint` → 返回 `{"ok":true,"visible":false}`
-  - `http://127.0.0.1:8090/show_joint` → 返回 `{"ok":true,"visible":true}`
+  - `http://127.0.0.1:8090/show_joint?isShow=false` → 返回 `{"ok":true,"visible":false}`
+  - `http://127.0.0.1:8090/show_joint?isShow=true` → 返回 `{"ok":true,"visible":true}`
+  - `http://127.0.0.1:8090/show_polygon?isShow=false`
+  - `http://127.0.0.1:8090/open_project?path=C:%5Cpath%5Cto%5Cscene.c4d`
   
 PowerShell 设置端口示例：
 ```
