@@ -98,7 +98,7 @@ def enabel_joint_display_filter(value):
     doc = documents.GetActiveDocument()
     bd = doc.GetActiveBaseDraw()
     # 关闭 Joint 显示
-    bd[c4d.BASEDRAW_DISPLAYFILTER_JOINT] = False
+    bd[c4d.BASEDRAW_DISPLAYFILTER_JOINT] = value
     c4d.EventAdd()
 
 
