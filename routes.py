@@ -13,7 +13,9 @@ import utils
 ROUTES = {
     "/ping": "ping",
     "/show_joint": "show_joint",
+    "/filter_joint": "filter_joint",
     "/show_polygon": "show_polygon",
+    "/filter_polygon": "filter_polygon",
     "/open_project": "open_project",
 }
 
@@ -40,12 +42,26 @@ def _act_show_joint(payload=None):
 
 
 def _act_show_polygon(payload=None):
-    is_show = None
+    is_show = True
     if payload and isinstance(payload, dict):
         is_show = utils._as_bool(payload.get("isShow"), None)
-    if is_show is None:
-        is_show = True
     utils.set_polygon_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
+    return {"ok": True, "visible": bool(is_show)}
+
+
+def _act_filter_joint(payload=None):
+    is_show = True
+    if payload and isinstance(payload, dict):
+        is_show = utils._as_bool(payload.get("isShow"), None)
+    utils.enabel_joint_display_filter(is_show)
+    return {"ok": True, "visible": bool(is_show)}
+
+
+def _act_filter_polygon(payload=None):
+    is_show = True
+    if payload and isinstance(payload, dict):
+        is_show = utils._as_bool(payload.get("isShow"), None)
+    utils.enabel_polygon_display_filter(is_show)
     return {"ok": True, "visible": bool(is_show)}
 
 
@@ -98,6 +114,8 @@ def _act_open_project(payload=None):
 ACTIONS = {
     "ping": _act_ping,
     "show_joint": _act_show_joint,
+    "filter_joint": _act_filter_joint,
     "show_polygon": _act_show_polygon,
+    "filter_polygon": _act_filter_polygon,
     "open_project": _act_open_project,
 }

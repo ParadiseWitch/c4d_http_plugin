@@ -92,3 +92,24 @@ def set_polygon_visibility(value, doc=None):
         except Exception:
             pass
     c4d.EventAdd()
+
+
+def enabel_joint_display_filter(value):
+    doc = documents.GetActiveDocument()
+    bd = doc.GetActiveBaseDraw()
+    # 关闭 Joint 显示
+    bd[c4d.BASEDRAW_DISPLAYFILTER_JOINT] = False
+    c4d.EventAdd()
+
+
+def enabel_polygon_display_filter(value):
+    doc = documents.GetActiveDocument()
+    bd = doc.GetActiveBaseDraw()
+    # 关闭 多边形 显示
+    bd[c4d.BASEDRAW_DISPLAYFILTER_POLYGON] = value
+    bd[c4d.BASEDRAW_DISPLAYFILTER_SPLINE] = value
+    bd[c4d.BASEDRAW_DISPLAYFILTER_GENERATOR] = value
+    bd[c4d.DISPLAYFILTER_HYPERNURBS] = value
+    bd[c4d.DISPLAYFILTER_MULTIAXIS] = value
+
+    c4d.EventAdd()
