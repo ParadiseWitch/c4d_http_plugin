@@ -113,3 +113,60 @@ def enabel_polygon_display_filter(value):
     bd[c4d.DISPLAYFILTER_MULTIAXIS] = value
 
     c4d.EventAdd()
+
+
+def select_all_weight_tags(clear_existing=False):
+    """Select all weight-related tags in the document.
+
+    This targets C4D's Weight tag (joint weights) and Vertex Map tag, as
+    both are commonly referred to as "权重标签" in workflows.
+
+    Args:
+        doc: Optional c4d.BaseDocument. Defaults to active document.
+        clear_existing: If True, deselects all tags first.
+
+    Returns:
+        int: Number of tags that were selected.
+    """
+    doc = documents.GetActiveDocument()
+    if doc is None:
+        return 0
+
+    # Collect candidate tag type IDs (skip missing IDs gracefully on older versions)
+    weight_tag_ids = []
+    for name in ("Tweights", "Tvertexmap"):
+        tid = getattr(c4d, name, None)
+        if isinstance(tid, int) and tid:
+            weight_tag_ids.append(tid)
+
+    if not weight_tag_ids:
+        return 0
+
+    count = 0
+
+    # Optionally clear existing tag selections
+    if clear_existing:
+        for obj in get_all_objects(doc):
+            try:
+                for tag in obj.GetTags() or []:
+                    tag.DelBit(c4d.BIT_ACTIVE)
+            except Exception:
+                pass
+
+    # Select all matching tags
+    for obj in get_all_objects(doc):
+        try:
+            for tag in obj.GetTags() or []:
+                try:
+                    for tid in weight_tag_ids:
+                        if tag.CheckType(tid):
+                            tag.SetBit(c4d.BIT_ACTIVE)
+                            count += 1
+                            break
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    c4d.EventAdd()
+    return count

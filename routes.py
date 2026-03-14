@@ -17,6 +17,7 @@ ROUTES = {
     "/show_polygon": "show_polygon",
     "/filter_polygon": "filter_polygon",
     "/open_project": "open_project",
+    "/select_weight_tag": "select_weight_tag",
 }
 
 
@@ -110,6 +111,11 @@ def _act_open_project(payload=None):
     return {"ok": True, "opened": p}
 
 
+def _act_select_weight_tag(payload=None):
+    utils.select_all_weight_tags()
+    return {"ok": True}
+
+
 # Action name -> callable
 ACTIONS = {
     "ping": _act_ping,
@@ -118,4 +124,5 @@ ACTIONS = {
     "show_polygon": _act_show_polygon,
     "filter_polygon": _act_filter_polygon,
     "open_project": _act_open_project,
+    "select_weight_tag": _act_select_weight_tag,
 }
