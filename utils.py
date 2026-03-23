@@ -5,6 +5,15 @@ import c4d
 from c4d import documents
 
 
+DISPLAY_MODE_MAP = {
+    "光影着色": c4d.BASEDRAW_SDISPLAY_GOURAUD,
+    "快速着色": c4d.BASEDRAW_SDISPLAY_QUICK,
+    "常量着色": c4d.BASEDRAW_SDISPLAY_FLAT,
+    "隐藏线条": c4d.BASEDRAW_SDISPLAY_HIDDENLINE,
+    "线框": c4d.BASEDRAW_SDISPLAY_NOSHADING,
+}
+
+
 # Action handlers run on C4D main thread (invoked by tasks.process_tasks)
 def _as_bool(val, default=True):
     if isinstance(val, bool):
@@ -266,43 +275,26 @@ def enabel_polygon_display_filter(value):
 
 def set_active_view_display_mode(display_mode_name):
     doc = documents.GetActiveDocument()
+    if doc is None:
+        raise RuntimeError("no-active-document")
+
     base_draw = doc.GetActiveBaseDraw()
+    if base_draw is None:
+        raise RuntimeError("no-active-basedraw")
+
     display_mode_name = str(display_mode_name).strip()
-
-    # https://developers.maxon.net/docs/py/2026_0_0/cinema_resource/unknown/dbasedraw.html#:~:text=Parameter%3A%20Active%20Object%20(Shading)
-    mode_map = {
-        "光影着色": c4d.BASEDRAW_SDISPLAY_GOURAUD,
-        "快速着色": c4d.BASEDRAW_SDISPLAY_QUICK,
-        "常量着色": c4d.BASEDRAW_SDISPLAY_FLAT,
-        "隐藏线条": c4d.BASEDRAW_SDISPLAY_HIDDENLINE,
-        "线框": c4d.BASEDRAW_SDISPLAY_NOSHADING,
-    }
-
-    mode = mode_map.get(display_mode_name)
+    mode = DISPLAY_MODE_MAP.get(display_mode_name)
     if mode is None:
-        return {
-            "ok": False,
-            "error": "不支持的模式名称。 支持的模式名称：{}".format(
-                ",".join(mode_map.keys())
-            ),
-        }
+        raise ValueError(display_mode_name)
 
-    try:
-        base_draw[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = mode
-    except Exception as exc:
-        return {
-            "ok": False,
-            "error": "set-display-mode-failed",
-            "displayMode": mode,
-            "message": str(exc),
-        }
-
+    base_draw[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = mode
     try:
         c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
     except Exception:
         pass
+
     c4d.EventAdd()
-    return {"ok": True, "displayMode": mode}
+    return mode
 
 
 def select_all_weight_tags(is_select=True):
@@ -433,23 +425,11 @@ def _find_layout_file(layout_name):
 def set_layout(layout_name):
     layout_path, searched_dirs = _find_layout_file(layout_name)
     if not layout_path:
-        return {
-            "ok": False,
-            "error": "layout-not-found",
-            "layoutName": layout_name,
-            "searchedDirs": searched_dirs,
-        }
+        raise IOError(
+            "layout-not-found: {}".format(",".join(searched_dirs))
+        )
 
-    try:
-        documents.LoadFile(layout_path)
-    except Exception as exc:
-        return {
-            "ok": False,
-            "error": "load-layout-exception",
-            "layoutName": layout_name,
-            "layoutPath": layout_path,
-            "message": str(exc),
-        }
+    documents.LoadFile(layout_path)
 
     c4d.EventAdd()
-    return {"ok": True, "layoutName": layout_name, "layoutPath": layout_path}
+    return layout_path

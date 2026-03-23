@@ -120,7 +120,28 @@ def handle_set_display_mode(request=None):
             "ok": False,
             "error": "missing-display-mode",
         }
-    return utils.set_active_view_display_mode(display_mode)
+    try:
+        mode = utils.set_active_view_display_mode(display_mode)
+    except ValueError:
+        return {
+            "ok": False,
+            "error": "unsupported-display-mode",
+            "displayMode": display_mode,
+            "supportedDisplayModes": sorted(utils.DISPLAY_MODE_MAP.keys()),
+        }
+    except RuntimeError as exc:
+        return {
+            "ok": False,
+            "error": str(exc),
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "set-display-mode-failed",
+            "displayMode": display_mode,
+            "message": str(exc),
+        }
+    return {"ok": True, "displayMode": mode}
 
 
 def handle_select_weight_tag(request=None):
@@ -135,4 +156,15 @@ def handle_set_layout(request=None):
     layout_name = request.get_param("layoutName") if request is not None else None
     if not layout_name:
         return {"ok": False, "error": "missing-layout-name"}
-    return utils.set_layout(layout_name)
+    try:
+        layout_path = utils.set_layout(layout_name)
+    except IOError:
+        return {"ok": False, "error": "layout-not-found", "layoutName": layout_name}
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "load-layout-exception",
+            "layoutName": layout_name,
+            "message": str(exc),
+        }
+    return {"ok": True, "layoutName": layout_name, "layoutPath": layout_path}
