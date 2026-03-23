@@ -4,11 +4,11 @@
 
 - 默认主机/端口：`127.0.0.1:8090`
 - 路由：
-  - `GET /ping` → 健康检查，返回 `pong`
-  - `GET /get_joint` → 检查当前 C4D 文件中是否存在关节对象，返回 `{ok:true,hasJoint:true|false}`
-  - `GET /get_animation` → 检查当前 C4D 文件中是否存在动画，支持关键帧轨道、动力学、粒子、流体/缓存等常见模拟内容，返回 `{ok:true,hasAnimation:true|false}`
-  - `GET /show_joint?isShow=true|false` → 控制所有关节/骨骼显隐（同步），返回 `{visible:true|false}`
-  - `GET /show_polygon?isShow=true|false` → 控制所有多边形对象显隐（同步），返回 `{visible:true|false}`
+  - `GET /ping` → 健康检查，返回 `{"status":"succ","data":{"msg":"服务正常"}}`
+  - `GET /get_joint` → 检查当前 C4D 文件中是否存在关节对象，返回 `{"status":"succ","data":{"hasJoint":true|false}}`
+  - `GET /get_animation` → 检查当前 C4D 文件中是否存在动画，返回 `{"status":"succ","data":{"hasAnimation":true|false}}`
+  - `GET /show_joint?isShow=true|false` → 控制所有关节/骨骼显隐（同步），返回 `{"status":"succ","data":{"visible":true|false}}`
+  - `GET /show_polygon?isShow=true|false` → 控制所有多边形对象显隐（同步），返回 `{"status":"succ","data":{"visible":true|false}}`
   - `GET /open_project?path=...` → 打开指定 C4D 文件（会关闭之前的文档）
   - `GET /set_display_mode?displayMode=光影着色` → 切换当前文件活动视图的显示模式
   - `GET /select_weight_tag?isSelect=true|false` → 选中或取消选中当前文档中的权重标签
@@ -30,12 +30,12 @@ http.route("show_joint", handle_show_joint)
 
 
 def handle_ping():
-    return json.dumps({"status": True, "data": {"msg": "pong"}})
+    return json.dumps({"status": "succ", "data": {"msg": "服务正常"}}, ensure_ascii=False)
 
 
 def handle_show_joint(request):
     is_show = request.get_param("isShow", "true")
-    return json.dumps({"status": True, "data": {"isShow": is_show}})
+    return json.dumps({"status": "succ", "data": {"isShow": is_show}}, ensure_ascii=False)
 ```
 
 其中 `request` 参数是可选的。处理函数不接参数时，`Http` 会直接调用；需要读取查询参数时，可以接收一个 `HttpRequest` 实例并通过 `get_param()` 取值。
@@ -51,10 +51,10 @@ def handle_show_joint(request):
 
 - 使用浏览器或 curl 访问：
   - `http://127.0.0.1:8090/ping`
-  - `http://127.0.0.1:8090/get_joint` → 返回 `{"ok":true,"hasJoint":true}`
-  - `http://127.0.0.1:8090/get_animation` → 返回 `{"ok":true,"hasAnimation":true}`
-  - `http://127.0.0.1:8090/show_joint?isShow=false` → 返回 `{"ok":true,"visible":false}`
-  - `http://127.0.0.1:8090/show_joint?isShow=true` → 返回 `{"ok":true,"visible":true}`
+  - `http://127.0.0.1:8090/get_joint` → 返回 `{"status":"succ","data":{"hasJoint":true}}`
+  - `http://127.0.0.1:8090/get_animation` → 返回 `{"status":"succ","data":{"hasAnimation":true}}`
+  - `http://127.0.0.1:8090/show_joint?isShow=false` → 返回 `{"status":"succ","data":{"visible":false}}`
+  - `http://127.0.0.1:8090/show_joint?isShow=true` → 返回 `{"status":"succ","data":{"visible":true}}`
   - `http://127.0.0.1:8090/show_polygon?isShow=false`
   - `http://127.0.0.1:8090/open_project?path=C:%5Cpath%5Cto%5Cscene.c4d`
   - `http://127.0.0.1:8090/set_display_mode?displayMode=%E5%85%89%E5%BD%B1%E7%9D%80%E8%89%B2`

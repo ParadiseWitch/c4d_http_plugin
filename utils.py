@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Cinema 4D 场景查询与视图控制工具函数模块。"""
 import os
 
 import c4d
@@ -14,8 +15,8 @@ DISPLAY_MODE_MAP = {
 }
 
 
-# Action handlers run on C4D main thread (invoked by tasks.process_tasks)
 def _as_bool(val, default=True):
+    """将常见的字符串或布尔值转换为布尔类型。"""
     if isinstance(val, bool):
         return val
     s = str(val).strip().lower()
@@ -27,7 +28,7 @@ def _as_bool(val, default=True):
 
 
 def iter_objects(root):
-    """Depth-first traversal starting from root object."""
+    """从根对象开始深度优先遍历所有层级对象。"""
     op = root
     while op:
         yield op
@@ -39,7 +40,7 @@ def iter_objects(root):
 
 
 def get_all_objects(doc=None):
-    """Return a list of all objects in the active document (or given doc)."""
+    """返回指定文档或当前活动文档中的全部对象列表。"""
     doc = documents.GetActiveDocument()
     if doc is None:
         return []
@@ -53,10 +54,7 @@ def get_all_objects(doc=None):
 
 
 def find_objects_by_types(type_ids, doc=None):
-    """Return objects whose type matches any id in type_ids.
-
-    type_ids: iterable of integer type IDs (e.g., c4d.Ojoint, c4d.Opolygon)
-    """
+    """按类型 ID 列表筛选并返回匹配的对象。"""
     objs = get_all_objects(doc)
     matched = []
     for obj in objs:
@@ -71,16 +69,19 @@ def find_objects_by_types(type_ids, doc=None):
 
 
 def get_all_joints(doc=None):
+    """返回当前文档中的所有关节或骨骼对象。"""
     return find_objects_by_types(
         (getattr(c4d, "Ojoint", 0), getattr(c4d, "Obone", 0)), doc
     )
 
 
 def get_all_polygons(doc=None):
+    """返回当前文档中的所有多边形对象。"""
     return find_objects_by_types((getattr(c4d, "Opolygon", 0),), doc)
 
 
 def _iter_tags(doc=None):
+    """遍历文档中所有对象挂载的标签。"""
     for obj in get_all_objects(doc):
         try:
             for tag in obj.GetTags() or []:
@@ -90,6 +91,7 @@ def _iter_tags(doc=None):
 
 
 def _iter_materials(doc=None):
+    """遍历指定文档或当前活动文档中的全部材质。"""
     if doc is None:
         doc = documents.GetActiveDocument()
     if doc is None:
@@ -102,6 +104,7 @@ def _iter_materials(doc=None):
 
 
 def _iter_animatables(doc=None):
+    """遍历可能包含动画轨道的文档节点集合。"""
     if doc is None:
         doc = documents.GetActiveDocument()
     if doc is None:
@@ -120,6 +123,7 @@ def _iter_animatables(doc=None):
 
 
 def _get_track_key_count(track):
+    """获取单条动画轨道上的关键帧数量。"""
     if track is None:
         return 0
 
@@ -134,6 +138,7 @@ def _get_track_key_count(track):
 
 
 def _has_keyframe_animation(doc=None):
+    """检查文档是否包含关键帧动画。"""
     for node in _iter_animatables(doc):
         try:
             for track in node.GetCTracks() or []:
@@ -145,6 +150,7 @@ def _has_keyframe_animation(doc=None):
 
 
 def _has_type_match(nodes, type_ids):
+    """检查节点集合中是否存在任意匹配指定类型 ID 的节点。"""
     valid_type_ids = [tid for tid in type_ids if isinstance(tid, int) and tid]
     if not valid_type_ids:
         return False
@@ -160,6 +166,7 @@ def _has_type_match(nodes, type_ids):
 
 
 def _has_simulation_animation(doc=None):
+    """检查文档是否包含模拟类动画对象、标签或粒子系统。"""
     if doc is None:
         doc = documents.GetActiveDocument()
     if doc is None:
@@ -216,6 +223,7 @@ def _has_simulation_animation(doc=None):
 
 
 def has_animation(doc=None):
+    """检查当前文档是否存在可识别的动画内容。"""
     if doc is None:
         doc = documents.GetActiveDocument()
     if doc is None:
@@ -224,13 +232,14 @@ def has_animation(doc=None):
     if _has_keyframe_animation(doc):
         return True
 
-    # if _has_simulation_animation(doc):
+    # 如需扩展为检测模拟动画，可启用下面的判断逻辑。
     #     return True
 
     return False
 
 
 def set_joint_visibility(value, doc=None):
+    """批量设置所有关节对象在编辑器中的可见性。"""
     if doc is None:
         doc = documents.GetActiveDocument()
     for obj in get_all_joints(doc):
@@ -242,6 +251,7 @@ def set_joint_visibility(value, doc=None):
 
 
 def set_polygon_visibility(value, doc=None):
+    """批量设置所有多边形对象在编辑器中的可见性。"""
     if doc is None:
         doc = documents.GetActiveDocument()
     for obj in get_all_polygons(doc):
@@ -253,17 +263,19 @@ def set_polygon_visibility(value, doc=None):
 
 
 def enabel_joint_display_filter(value):
+    """设置当前活动视图中的关节显示过滤器状态。"""
     doc = documents.GetActiveDocument()
     bd = doc.GetActiveBaseDraw()
-    # 关闭 Joint 显示
+    # 控制关节显示过滤器的开关状态。
     bd[c4d.BASEDRAW_DISPLAYFILTER_JOINT] = value
     c4d.EventAdd()
 
 
 def enabel_polygon_display_filter(value):
+    """设置当前活动视图中的多边形相关显示过滤器状态。"""
     doc = documents.GetActiveDocument()
     bd = doc.GetActiveBaseDraw()
-    # 关闭 多边形 显示
+    # 同步控制多边形及相关对象在视图中的显示状态。
     bd[c4d.BASEDRAW_DISPLAYFILTER_POLYGON] = value
     bd[c4d.BASEDRAW_DISPLAYFILTER_SPLINE] = value
     bd[c4d.BASEDRAW_DISPLAYFILTER_GENERATOR] = value
@@ -274,6 +286,7 @@ def enabel_polygon_display_filter(value):
 
 
 def set_active_view_display_mode(display_mode_name):
+    """设置当前活动视图的显示模式。"""
     doc = documents.GetActiveDocument()
     if doc is None:
         raise RuntimeError("no-active-document")
@@ -298,23 +311,12 @@ def set_active_view_display_mode(display_mode_name):
 
 
 def select_all_weight_tags(is_select=True):
-    """Select all weight-related tags in the document.
-
-    This targets C4D's Weight tag (joint weights) and Vertex Map tag, as
-    both are commonly referred to as "权重标签" in workflows.
-
-    Args:
-        is_select: True selects all matching weight tags, False deselects
-            matching weight tags.
-
-    Returns:
-        int: Number of tags that were selected.
-    """
+    """批量选中或取消选中文档中的权重相关标签，并返回处理数量。"""
     doc = documents.GetActiveDocument()
     if doc is None:
         return 0
 
-    # Collect candidate tag type IDs (skip missing IDs gracefully on older versions)
+    # 收集可能存在的权重标签类型，兼容旧版本中缺失常量的情况。
     weight_tag_ids = []
     for name in ("Tweights", "Tvertexmap"):
         tid = getattr(c4d, name, None)
@@ -326,7 +328,7 @@ def select_all_weight_tags(is_select=True):
 
     count = 0
 
-    # Select or deselect matching weight tags without touching other tag types.
+    # 仅处理匹配的权重标签，不影响其他类型的标签。
     for obj in get_all_objects(doc):
         try:
             for tag in obj.GetTags() or []:
@@ -349,6 +351,7 @@ def select_all_weight_tags(is_select=True):
 
 
 def _iter_existing_layout_dirs():
+    """遍历当前环境中可能存在布局文件的目录。"""
     candidate_dirs = []
 
     try:
@@ -391,6 +394,7 @@ def _iter_existing_layout_dirs():
 
 
 def _find_layout_file(layout_name):
+    """根据布局名称或路径查找实际可用的布局文件。"""
     if not layout_name:
         return None, []
 
@@ -423,6 +427,7 @@ def _find_layout_file(layout_name):
 
 
 def set_layout(layout_name):
+    """加载指定的布局文件并刷新 Cinema 4D 界面。"""
     layout_path, searched_dirs = _find_layout_file(layout_name)
     if not layout_path:
         raise IOError(
