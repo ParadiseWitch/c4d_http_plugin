@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+
 import c4d
 from c4d import documents
 
@@ -164,3 +166,108 @@ def select_all_weight_tags(is_select=True):
 
     c4d.EventAdd()
     return count
+
+
+def _iter_existing_layout_dirs():
+    candidate_dirs = []
+
+    try:
+        candidate_dirs.append(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS))
+    except Exception:
+        pass
+
+    try:
+        candidate_dirs.append(c4d.storage.GeGetStartupWritePath())
+    except Exception:
+        pass
+
+    try:
+        candidate_dirs.append(c4d.storage.GeGetStartupPath())
+    except Exception:
+        pass
+
+    subdirs = (
+        "",
+        "layout",
+        "layouts",
+        os.path.join("library", "layout"),
+        os.path.join("library", "layouts"),
+        os.path.join("prefs", "layout"),
+        os.path.join("prefs", "layouts"),
+    )
+
+    seen = set()
+    for base_dir in candidate_dirs:
+        if not base_dir:
+            continue
+        for subdir in subdirs:
+            path = os.path.normpath(os.path.join(base_dir, subdir))
+            key = path.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            if os.path.isdir(path):
+                yield path
+
+
+def _find_layout_file(layout_name):
+    if not layout_name:
+        return None, []
+
+    layout_name = layout_name.strip()
+    if not layout_name:
+        return None, []
+
+    searched_dirs = []
+    candidate_names = [layout_name]
+    if not layout_name.lower().endswith(".l4d"):
+        candidate_names.append(layout_name + ".l4d")
+
+    if os.path.isfile(layout_name):
+        return os.path.normpath(layout_name), searched_dirs
+
+    lower_names = tuple(name.lower() for name in candidate_names)
+    for layout_dir in _iter_existing_layout_dirs():
+        searched_dirs.append(layout_dir)
+        try:
+            for root, _, files in os.walk(layout_dir):
+                for filename in files:
+                    if filename.lower() in lower_names:
+                        return os.path.normpath(os.path.join(root, filename)), searched_dirs
+        except Exception:
+            pass
+
+    return None, searched_dirs
+
+
+def set_layout(layout_name):
+    layout_path, searched_dirs = _find_layout_file(layout_name)
+    if not layout_path:
+        return {
+            "ok": False,
+            "error": "layout-not-found",
+            "layoutName": layout_name,
+            "searchedDirs": searched_dirs,
+        }
+
+    try:
+        result = documents.LoadFile(layout_path)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "load-layout-exception",
+            "layoutName": layout_name,
+            "layoutPath": layout_path,
+            "message": str(exc),
+        }
+
+    if not result:
+        return {
+            "ok": False,
+            "error": "load-layout-failed",
+            "layoutName": layout_name,
+            "layoutPath": layout_path,
+        }
+
+    c4d.EventAdd()
+    return {"ok": True, "layoutName": layout_name, "layoutPath": layout_path}

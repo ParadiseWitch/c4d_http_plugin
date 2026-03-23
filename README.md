@@ -8,6 +8,7 @@
   - `GET /show_joint?isShow=true|false` → 控制所有关节/骨骼显隐（同步），返回 `{visible:true|false}`
   - `GET /show_polygon?isShow=true|false` → 控制所有多边形对象显隐（同步），返回 `{visible:true|false}`
   - `GET /open_project?path=...` → 打开指定 C4D 文件（会关闭之前的文档）
+  - `GET /set_layout?layoutName=111` → 切换到名为 `111` 的界面布局
 - 同步行为：所有变更路由在 C4D 主线程执行并完成后才返回响应。
 - 菜单：在“Plugins > HTTP Control: Start/Stop”切换服务器状态。
  - 配置环境变量：`C4D_HTTP_HOST`、`C4D_HTTP_PORT`
@@ -27,6 +28,7 @@
   - `http://127.0.0.1:8090/show_joint?isShow=true` → 返回 `{"ok":true,"visible":true}`
   - `http://127.0.0.1:8090/show_polygon?isShow=false`
   - `http://127.0.0.1:8090/open_project?path=C:%5Cpath%5Cto%5Cscene.c4d`
+  - `http://127.0.0.1:8090/set_layout?layoutName=111`
   
 PowerShell 设置端口示例：
 ```

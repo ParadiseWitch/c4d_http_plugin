@@ -18,6 +18,7 @@ ROUTES = {
     "/filter_polygon": "filter_polygon",
     "/open_project": "open_project",
     "/select_weight_tag": "select_weight_tag",
+    "/set_layout": "set_layout",
 }
 
 
@@ -116,6 +117,15 @@ def _act_select_weight_tag(payload=None):
     return {"ok": True}
 
 
+def _act_set_layout(payload=None):
+    layout_name = None
+    if payload and isinstance(payload, dict):
+        layout_name = payload.get("layoutName")
+    if not layout_name:
+        return {"ok": False, "error": "missing-layout-name"}
+    return utils.set_layout(layout_name)
+
+
 # Action name -> callable
 ACTIONS = {
     "ping": _act_ping,
@@ -125,4 +135,5 @@ ACTIONS = {
     "filter_polygon": _act_filter_polygon,
     "open_project": _act_open_project,
     "select_weight_tag": _act_select_weight_tag,
+    "set_layout": _act_set_layout,
 }
