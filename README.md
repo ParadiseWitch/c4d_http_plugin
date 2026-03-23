@@ -15,6 +15,29 @@
 - 菜单：在“Plugins > HTTP Control: Start/Stop”切换服务器状态。
  - 配置环境变量：`C4D_HTTP_HOST`、`C4D_HTTP_PORT`
 
+## 模块化 API
+
+HTTP 服务和主线程任务切换已经抽到 `http/` 包中，插件层按下面的方式注册路由：
+
+```python
+from http import Http
+
+http = Http(port=8090, host="127.0.0.1", message_plugin_id=MESSAGE_PLUGIN_ID)
+http.route("ping", handle_ping)
+http.route("show_joint", handle_show_joint)
+
+
+def handle_ping():
+    return json.dumps({"status": True, "data": {"msg": "pong"}})
+
+
+def handle_show_joint(request):
+    is_show = request.get_param("isShow", "true")
+    return json.dumps({"status": True, "data": {"isShow": is_show}})
+```
+
+其中 `request` 参数是可选的。处理函数不接参数时，`Http` 会直接调用；需要读取查询参数时，可以接收一个 `HttpRequest` 实例并通过 `get_param()` 取值。
+
 ## 安装
 
 1. 将整个 `http_control_server` 文件夹复制到 Cinema 4D 的 `plugins` 目录，例如：
@@ -42,11 +65,9 @@ $env:C4D_HTTP_HOST='127.0.0.1'; $env:C4D_HTTP_PORT='8090'
 ## 项目结构
 
 - `http_control_server.pyp`：插件入口，注册组件
-- `plugin.py`：Command/Message 插件与注册逻辑
-- `server.py`：HTTP 服务器与路由
-- `tasks.py`：任务队列与主线程处理（SpecialEvent）
-- `operations.py`：场景操作（设置关节可见性）
-- `constants.py`：插件 ID、环境配置读取
+- `http_control_server.pyp`：插件 ID、环境配置、Command/Message 注册逻辑
+- `http/`：通用 HTTP 服务、请求对象、主线程任务派发
+- `routes.py`：业务路由注册与 C4D 场景操作
 
 ## 备注
 

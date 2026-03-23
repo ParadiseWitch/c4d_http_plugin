@@ -1,84 +1,76 @@
 # -*- coding: utf-8 -*-
 """
 Route configuration and action handlers.
-Extend ROUTES/ACTIONS to add new endpoints without touching server/tasks.
+Plugin layer only registers business handlers here.
 """
 
 import c4d
+import json
 import os
 from c4d import documents
 import utils
 
-# Path -> action name
-ROUTES = {
-    "/ping": "ping",
-    "/get_joint": "get_joint",
-    "/get_animation": "get_animation",
-    "/show_joint": "show_joint",
-    "/filter_joint": "filter_joint",
-    "/show_polygon": "show_polygon",
-    "/filter_polygon": "filter_polygon",
-    "/open_project": "open_project",
-    "/select_weight_tag": "select_weight_tag",
-    "/set_layout": "set_layout",
-}
+
+def register(http_server):
+    http_server.route("ping", handle_ping)
+    http_server.route("get_joint", handle_get_joint)
+    http_server.route("get_animation", handle_get_animation)
+    http_server.route("show_joint", handle_show_joint)
+    http_server.route("filter_joint", handle_filter_joint)
+    http_server.route("show_polygon", handle_show_polygon)
+    http_server.route("filter_polygon", handle_filter_polygon)
+    http_server.route("open_project", handle_open_project)
+    http_server.route("select_weight_tag", handle_select_weight_tag)
+    http_server.route("set_layout", handle_set_layout)
 
 
-def resolve_action(path):
-    """Return the action string for a URL path or None if not found."""
-    return ROUTES.get(path)
+def handle_ping():
+    return json.dumps({"status": True, "data": {"msg": "pong"}})
 
 
-# Action handlers run on C4D main thread (invoked by tasks.process_tasks)
-def _act_ping(payload=None):
-    return "pong"
-
-
-def _act_get_joint(payload=None):
+def handle_get_joint(request=None):
     joints = utils.get_all_joints()
     return {"ok": True, "hasJoint": bool(joints)}
 
 
-def _act_get_animation(payload=None):
+def handle_get_animation(request=None):
     return {"ok": True, "hasAnimation": utils.has_animation()}
 
 
-def _act_show_joint(payload=None):
+def handle_show_joint(request=None):
     is_show = True
-    if payload and isinstance(payload, dict):
-        is_show = utils._as_bool(payload.get("isShow"), None)
+    if request is not None:
+        is_show = utils._as_bool(request.get_param("isShow"), None)
     utils.set_joint_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
     return {"ok": True, "visible": bool(is_show)}
 
 
-def _act_show_polygon(payload=None):
+def handle_show_polygon(request=None):
     is_show = True
-    if payload and isinstance(payload, dict):
-        is_show = utils._as_bool(payload.get("isShow"), None)
+    if request is not None:
+        is_show = utils._as_bool(request.get_param("isShow"), None)
     utils.set_polygon_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
     return {"ok": True, "visible": bool(is_show)}
 
 
-def _act_filter_joint(payload=None):
+def handle_filter_joint(request=None):
     is_show = True
-    if payload and isinstance(payload, dict):
-        is_show = utils._as_bool(payload.get("isShow"), None)
+    if request is not None:
+        is_show = utils._as_bool(request.get_param("isShow"), None)
     utils.enabel_joint_display_filter(is_show)
     return {"ok": True, "visible": bool(is_show)}
 
 
-def _act_filter_polygon(payload=None):
+def handle_filter_polygon(request=None):
     is_show = True
-    if payload and isinstance(payload, dict):
-        is_show = utils._as_bool(payload.get("isShow"), None)
+    if request is not None:
+        is_show = utils._as_bool(request.get_param("isShow"), None)
     utils.enabel_polygon_display_filter(is_show)
     return {"ok": True, "visible": bool(is_show)}
 
 
-def _act_open_project(payload=None):
-    p = None
-    if payload and isinstance(payload, dict):
-        p = payload.get("path")
+def handle_open_project(request=None):
+    p = request.get_param("path") if request is not None else None
     if not p:
         return {"ok": False, "error": "missing-path"}
     try:
@@ -120,33 +112,16 @@ def _act_open_project(payload=None):
     return {"ok": True, "opened": p}
 
 
-def _act_select_weight_tag(payload=None):
+def handle_select_weight_tag(request=None):
     is_select = True
-    if payload and isinstance(payload, dict):
-        is_select = utils._as_bool(payload.get("isSelect"), None)
+    if request is not None:
+        is_select = utils._as_bool(request.get_param("isSelect"), None)
     utils.select_all_weight_tags(is_select)
     return {"ok": True}
 
 
-def _act_set_layout(payload=None):
-    layout_name = None
-    if payload and isinstance(payload, dict):
-        layout_name = payload.get("layoutName")
+def handle_set_layout(request=None):
+    layout_name = request.get_param("layoutName") if request is not None else None
     if not layout_name:
         return {"ok": False, "error": "missing-layout-name"}
     return utils.set_layout(layout_name)
-
-
-# Action name -> callable
-ACTIONS = {
-    "ping": _act_ping,
-    "get_joint": _act_get_joint,
-    "get_animation": _act_get_animation,
-    "show_joint": _act_show_joint,
-    "filter_joint": _act_filter_joint,
-    "show_polygon": _act_show_polygon,
-    "filter_polygon": _act_filter_polygon,
-    "open_project": _act_open_project,
-    "select_weight_tag": _act_select_weight_tag,
-    "set_layout": _act_set_layout,
-}
