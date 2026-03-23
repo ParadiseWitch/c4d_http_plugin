@@ -20,6 +20,7 @@ def register(http_server):
     http_server.route("show_polygon", handle_show_polygon)
     http_server.route("filter_polygon", handle_filter_polygon)
     http_server.route("open_project", handle_open_project)
+    http_server.route("set_display_mode", handle_set_display_mode)
     http_server.route("select_weight_tag", handle_select_weight_tag)
     http_server.route("set_layout", handle_set_layout)
 
@@ -40,7 +41,7 @@ def handle_get_animation(request=None):
 def handle_show_joint(request=None):
     is_show = True
     if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), None)
+        is_show = utils._as_bool(request.get_param("isShow"), True)
     utils.set_joint_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
     return {"ok": True, "visible": bool(is_show)}
 
@@ -48,7 +49,7 @@ def handle_show_joint(request=None):
 def handle_show_polygon(request=None):
     is_show = True
     if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), None)
+        is_show = utils._as_bool(request.get_param("isShow"), True)
     utils.set_polygon_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
     return {"ok": True, "visible": bool(is_show)}
 
@@ -56,7 +57,7 @@ def handle_show_polygon(request=None):
 def handle_filter_joint(request=None):
     is_show = True
     if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), None)
+        is_show = utils._as_bool(request.get_param("isShow"), True)
     utils.enabel_joint_display_filter(is_show)
     return {"ok": True, "visible": bool(is_show)}
 
@@ -64,7 +65,7 @@ def handle_filter_joint(request=None):
 def handle_filter_polygon(request=None):
     is_show = True
     if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), None)
+        is_show = utils._as_bool(request.get_param("isShow"), True)
     utils.enabel_polygon_display_filter(is_show)
     return {"ok": True, "visible": bool(is_show)}
 
@@ -112,10 +113,20 @@ def handle_open_project(request=None):
     return {"ok": True, "opened": p}
 
 
+def handle_set_display_mode(request=None):
+    display_mode = request.get_param("displayMode") if request is not None else None
+    if not display_mode:
+        return {
+            "ok": False,
+            "error": "missing-display-mode",
+        }
+    return utils.set_active_view_display_mode(display_mode)
+
+
 def handle_select_weight_tag(request=None):
     is_select = True
     if request is not None:
-        is_select = utils._as_bool(request.get_param("isSelect"), None)
+        is_select = utils._as_bool(request.get_param("isSelect"), False)
     utils.select_all_weight_tags(is_select)
     return {"ok": True}
 

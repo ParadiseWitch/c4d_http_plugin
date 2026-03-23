@@ -6,17 +6,14 @@ from c4d import documents
 
 
 # Action handlers run on C4D main thread (invoked by tasks.process_tasks)
-def _as_bool(val, default=None):
-    try:
-        if isinstance(val, bool):
-            return val
-        s = str(val).strip().lower()
-        if s in ("1", "true", "yes", "on"):
-            return True
-        if s in ("0", "false", "no", "off"):
-            return False
-    except Exception:
-        pass
+def _as_bool(val, default=True):
+    if isinstance(val, bool):
+        return val
+    s = str(val).strip().lower()
+    if s in ("1", "true", "yes", "on"):
+        return True
+    if s in ("0", "false", "no", "off"):
+        return False
     return default
 
 
@@ -265,6 +262,47 @@ def enabel_polygon_display_filter(value):
     bd[c4d.DISPLAYFILTER_MULTIAXIS] = value
 
     c4d.EventAdd()
+
+
+def set_active_view_display_mode(display_mode_name):
+    doc = documents.GetActiveDocument()
+    base_draw = doc.GetActiveBaseDraw()
+    display_mode_name = str(display_mode_name).strip()
+
+    # https://developers.maxon.net/docs/py/2026_0_0/cinema_resource/unknown/dbasedraw.html#:~:text=Parameter%3A%20Active%20Object%20(Shading)
+    mode_map = {
+        "光影着色": c4d.BASEDRAW_SDISPLAY_GOURAUD,
+        "快速着色": c4d.BASEDRAW_SDISPLAY_QUICK,
+        "常量着色": c4d.BASEDRAW_SDISPLAY_FLAT,
+        "隐藏线条": c4d.BASEDRAW_SDISPLAY_HIDDENLINE,
+        "线框": c4d.BASEDRAW_SDISPLAY_NOSHADING,
+    }
+
+    mode = mode_map.get(display_mode_name)
+    if mode is None:
+        return {
+            "ok": False,
+            "error": "不支持的模式名称。 支持的模式名称：{}".format(
+                ",".join(mode_map.keys())
+            ),
+        }
+
+    try:
+        base_draw[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = mode
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "set-display-mode-failed",
+            "displayMode": mode,
+            "message": str(exc),
+        }
+
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+    c4d.EventAdd()
+    return {"ok": True, "displayMode": mode}
 
 
 def select_all_weight_tags(is_select=True):
