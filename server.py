@@ -21,6 +21,10 @@ _server_thread = None
 _httpd = None
 
 
+def is_server_running():
+    return _server_thread is not None and _httpd is not None
+
+
 def _respond(handler, code, body, content_type="text/plain; charset=utf-8"):
     try:
         if not isinstance(body, bytes):
@@ -96,7 +100,7 @@ class _ThreadingHTTPServer(_socketserver.ThreadingMixIn, _httpserver.HTTPServer)
 
 def start_server():
     global _server_thread, _httpd
-    if _server_thread is not None:
+    if is_server_running():
         print("[http] server already running")
         return True
     host, port = env_host_port()
@@ -150,7 +154,7 @@ def parse_request(path, qs):
 
 def stop_server():
     global _server_thread, _httpd
-    if _server_thread is None or _httpd is None:
+    if not is_server_running():
         print("[http] server not running")
         _server_thread = None
         _httpd = None

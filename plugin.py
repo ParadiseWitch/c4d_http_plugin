@@ -9,9 +9,10 @@ import tasks
 
 class HttpControlCommand(plugins.CommandData):
     def __init__(self):
-        self.running = False
+        self.running = server.is_server_running()
 
     def Execute(self, doc):
+        self.running = server.is_server_running()
         if self.running:
             if server.stop_server():
                 self.running = False
@@ -48,3 +49,4 @@ def register():
         dat=HttpControlMessage(),
     )
 
+    server.start_server()
