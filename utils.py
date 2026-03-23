@@ -74,6 +74,156 @@ def get_all_polygons(doc=None):
     return find_objects_by_types((getattr(c4d, "Opolygon", 0),), doc)
 
 
+def _iter_tags(doc=None):
+    for obj in get_all_objects(doc):
+        try:
+            for tag in obj.GetTags() or []:
+                yield tag
+        except Exception:
+            pass
+
+
+def _iter_materials(doc=None):
+    if doc is None:
+        doc = documents.GetActiveDocument()
+    if doc is None:
+        return
+
+    material = doc.GetFirstMaterial()
+    while material:
+        yield material
+        material = material.GetNext()
+
+
+def _iter_animatables(doc=None):
+    if doc is None:
+        doc = documents.GetActiveDocument()
+    if doc is None:
+        return
+
+    yield doc
+
+    for obj in get_all_objects(doc):
+        yield obj
+
+    for tag in _iter_tags(doc):
+        yield tag
+
+    for material in _iter_materials(doc):
+        yield material
+
+
+def _get_track_key_count(track):
+    if track is None:
+        return 0
+
+    try:
+        curve = track.GetCurve()
+        if curve is not None:
+            return int(curve.GetKeyCount())
+    except Exception:
+        pass
+
+    return 0
+
+
+def _has_keyframe_animation(doc=None):
+    for node in _iter_animatables(doc):
+        try:
+            for track in node.GetCTracks() or []:
+                if _get_track_key_count(track) > 1:
+                    return True
+        except Exception:
+            pass
+    return False
+
+
+def _has_type_match(nodes, type_ids):
+    valid_type_ids = [tid for tid in type_ids if isinstance(tid, int) and tid]
+    if not valid_type_ids:
+        return False
+
+    for node in nodes:
+        try:
+            for tid in valid_type_ids:
+                if node.CheckType(tid):
+                    return True
+        except Exception:
+            pass
+    return False
+
+
+def _has_simulation_animation(doc=None):
+    if doc is None:
+        doc = documents.GetActiveDocument()
+    if doc is None:
+        return False
+
+    object_type_names = (
+        "Oparticle",
+        "Oemitter",
+        "Oattractor",
+        "Odeflector",
+        "Owind",
+        "Oturbulence",
+        "Ofriction",
+        "Orotation",
+        "Ogravity",
+        "Ocollision",
+        "Obodycapture",
+        "Oconnector",
+        "Opyrocluster",
+        "Ometaball",
+        "Ovolume",
+    )
+    tag_type_names = (
+        "Tpointcache",
+        "Tdynamicsbody",
+        "Tcolliderbody",
+        "Tsoftbody",
+        "Tcloth",
+        "Tclothbelt",
+        "Tclothcollider",
+        "Tcmotion",
+        "Tca",
+        "Tcacheproxytag",
+        "Tfluid",
+    )
+
+    object_type_ids = [getattr(c4d, name, 0) for name in object_type_names]
+    tag_type_ids = [getattr(c4d, name, 0) for name in tag_type_names]
+
+    if _has_type_match(get_all_objects(doc), object_type_ids):
+        return True
+
+    if _has_type_match(_iter_tags(doc), tag_type_ids):
+        return True
+
+    try:
+        particle_system = doc.GetParticleSystem()
+        if particle_system:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def has_animation(doc=None):
+    if doc is None:
+        doc = documents.GetActiveDocument()
+    if doc is None:
+        return False
+
+    if _has_keyframe_animation(doc):
+        return True
+
+    # if _has_simulation_animation(doc):
+    #     return True
+
+    return False
+
+
 def set_joint_visibility(value, doc=None):
     if doc is None:
         doc = documents.GetActiveDocument()
@@ -233,7 +383,9 @@ def _find_layout_file(layout_name):
             for root, _, files in os.walk(layout_dir):
                 for filename in files:
                     if filename.lower() in lower_names:
-                        return os.path.normpath(os.path.join(root, filename)), searched_dirs
+                        return os.path.normpath(
+                            os.path.join(root, filename)
+                        ), searched_dirs
         except Exception:
             pass
 

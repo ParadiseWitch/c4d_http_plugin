@@ -5,6 +5,8 @@
 - 默认主机/端口：`127.0.0.1:8090`
 - 路由：
   - `GET /ping` → 健康检查，返回 `pong`
+  - `GET /get_joint` → 检查当前 C4D 文件中是否存在关节对象，返回 `{ok:true,hasJoint:true|false}`
+  - `GET /get_animation` → 检查当前 C4D 文件中是否存在动画，支持关键帧轨道、动力学、粒子、流体/缓存等常见模拟内容，返回 `{ok:true,hasAnimation:true|false}`
   - `GET /show_joint?isShow=true|false` → 控制所有关节/骨骼显隐（同步），返回 `{visible:true|false}`
   - `GET /show_polygon?isShow=true|false` → 控制所有多边形对象显隐（同步），返回 `{visible:true|false}`
   - `GET /open_project?path=...` → 打开指定 C4D 文件（会关闭之前的文档）
@@ -24,6 +26,8 @@
 
 - 使用浏览器或 curl 访问：
   - `http://127.0.0.1:8090/ping`
+  - `http://127.0.0.1:8090/get_joint` → 返回 `{"ok":true,"hasJoint":true}`
+  - `http://127.0.0.1:8090/get_animation` → 返回 `{"ok":true,"hasAnimation":true}`
   - `http://127.0.0.1:8090/show_joint?isShow=false` → 返回 `{"ok":true,"visible":false}`
   - `http://127.0.0.1:8090/show_joint?isShow=true` → 返回 `{"ok":true,"visible":true}`
   - `http://127.0.0.1:8090/show_polygon?isShow=false`

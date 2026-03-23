@@ -12,6 +12,8 @@ import utils
 # Path -> action name
 ROUTES = {
     "/ping": "ping",
+    "/get_joint": "get_joint",
+    "/get_animation": "get_animation",
     "/show_joint": "show_joint",
     "/filter_joint": "filter_joint",
     "/show_polygon": "show_polygon",
@@ -30,6 +32,15 @@ def resolve_action(path):
 # Action handlers run on C4D main thread (invoked by tasks.process_tasks)
 def _act_ping(payload=None):
     return "pong"
+
+
+def _act_get_joint(payload=None):
+    joints = utils.get_all_joints()
+    return {"ok": True, "hasJoint": bool(joints)}
+
+
+def _act_get_animation(payload=None):
+    return {"ok": True, "hasAnimation": utils.has_animation()}
 
 
 def _act_show_joint(payload=None):
@@ -129,6 +140,8 @@ def _act_set_layout(payload=None):
 # Action name -> callable
 ACTIONS = {
     "ping": _act_ping,
+    "get_joint": _act_get_joint,
+    "get_animation": _act_get_animation,
     "show_joint": _act_show_joint,
     "filter_joint": _act_filter_joint,
     "show_polygon": _act_show_polygon,
