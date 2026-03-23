@@ -403,7 +403,7 @@ def set_layout(layout_name):
         }
 
     try:
-        result = documents.LoadFile(layout_path)
+        documents.LoadFile(layout_path)
     except Exception as exc:
         return {
             "ok": False,
@@ -411,14 +411,6 @@ def set_layout(layout_name):
             "layoutName": layout_name,
             "layoutPath": layout_path,
             "message": str(exc),
-        }
-
-    if not result:
-        return {
-            "ok": False,
-            "error": "load-layout-failed",
-            "layoutName": layout_name,
-            "layoutPath": layout_path,
         }
 
     c4d.EventAdd()
