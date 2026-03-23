@@ -32,12 +32,9 @@ def _act_ping(payload=None):
 
 
 def _act_show_joint(payload=None):
-    is_show = None
+    is_show = True
     if payload and isinstance(payload, dict):
         is_show = utils._as_bool(payload.get("isShow"), None)
-    if is_show is None:
-        # default to show if not provided
-        is_show = True
     utils.set_joint_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
     return {"ok": True, "visible": bool(is_show)}
 
@@ -112,7 +109,10 @@ def _act_open_project(payload=None):
 
 
 def _act_select_weight_tag(payload=None):
-    utils.select_all_weight_tags()
+    is_select = True
+    if payload and isinstance(payload, dict):
+        is_select = utils._as_bool(payload.get("isSelect"), None)
+    utils.select_all_weight_tags(is_select)
     return {"ok": True}
 
 

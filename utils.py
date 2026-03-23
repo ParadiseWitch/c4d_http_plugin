@@ -115,15 +115,15 @@ def enabel_polygon_display_filter(value):
     c4d.EventAdd()
 
 
-def select_all_weight_tags(clear_existing=False):
+def select_all_weight_tags(is_select=True):
     """Select all weight-related tags in the document.
 
     This targets C4D's Weight tag (joint weights) and Vertex Map tag, as
     both are commonly referred to as "权重标签" in workflows.
 
     Args:
-        doc: Optional c4d.BaseDocument. Defaults to active document.
-        clear_existing: If True, deselects all tags first.
+        is_select: True selects all matching weight tags, False deselects
+            matching weight tags.
 
     Returns:
         int: Number of tags that were selected.
@@ -144,23 +144,17 @@ def select_all_weight_tags(clear_existing=False):
 
     count = 0
 
-    # Optionally clear existing tag selections
-    if clear_existing:
-        for obj in get_all_objects(doc):
-            try:
-                for tag in obj.GetTags() or []:
-                    tag.DelBit(c4d.BIT_ACTIVE)
-            except Exception:
-                pass
-
-    # Select all matching tags
+    # Select or deselect matching weight tags without touching other tag types.
     for obj in get_all_objects(doc):
         try:
             for tag in obj.GetTags() or []:
                 try:
                     for tid in weight_tag_ids:
                         if tag.CheckType(tid):
-                            tag.SetBit(c4d.BIT_ACTIVE)
+                            if is_select:
+                                tag.SetBit(c4d.BIT_ACTIVE)
+                            else:
+                                tag.DelBit(c4d.BIT_ACTIVE)
                             count += 1
                             break
                 except Exception:
