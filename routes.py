@@ -60,13 +60,13 @@ def handle_play(request=None):
     c4d.CallCommand(12426)
     c4d.CallCommand(12501)
     c4d.CallCommand(12412)
-    return succ({"toggled": True})
+    return succ()
 
 
 def handle_is_playing(request=None):
     """查询当前工程的是否正在播放。"""
     is_playing = c4d.IsCommandChecked(12412)
-    return succ({"is_palying": is_playing})
+    return succ({"is_playing": is_playing})
 
 
 def handle_show_joint(request=None):
