@@ -17,6 +17,8 @@ def register(http_server):
     http_server.route("ping", handle_ping)
     http_server.route("get_joint", handle_get_joint)
     http_server.route("get_animation", handle_get_animation)
+    http_server.route("play", handle_play)
+    http_server.route("get_play_status", handle_get_play_status)
     http_server.route("show_joint", handle_show_joint)
     http_server.route("filter_joint", handle_filter_joint)
     http_server.route("show_polygon", handle_show_polygon)
@@ -51,6 +53,20 @@ def handle_get_joint(request=None):
 def handle_get_animation(request=None):
     """查询当前文档是否包含动画数据。"""
     return succ({"hasAnimation": utils.has_animation()})
+
+
+def handle_play(request=None):
+    """跳转到第一帧并开始单次播放。"""
+    c4d.CallCommand(12426)
+    c4d.CallCommand(12501)
+    c4d.CallCommand(12412)
+    return succ({"toggled": True})
+
+
+def handle_get_play_status(request=None):
+    """查询当前工程的播放状态。"""
+    is_playing = c4d.IsCommandChecked(12412)
+    return succ({"is_palying": is_playing})
 
 
 def handle_show_joint(request=None):
@@ -113,7 +129,7 @@ def handle_open_project(request=None):
             "SCENEFILTER_PARTICLES",
             "SCENEFILTER_OTHER",
             "SCENEFILTER_ANIMATION",
-            "SCENEFILTER_DIALOGSALLOWED",
+            # "SCENEFILTER_DIALOGSALLOWED",
         ):
             flags |= getattr(c4d, name, 0)
 

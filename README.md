@@ -7,6 +7,8 @@
   - `GET /ping` → 健康检查，返回 `{"status":"succ","data":{"msg":"服务正常"}}`
   - `GET /get_joint` → 检查当前 C4D 文件中是否存在关节对象，返回 `{"status":"succ","data":{"hasJoint":true|false}}`
   - `GET /get_animation` → 检查当前 C4D 文件中是否存在动画，返回 `{"status":"succ","data":{"hasAnimation":true|false}}`
+  - `GET /play` → 跳转到第一帧后执行一次单次播放
+  - `GET /get_play_status` → 查询当前工程的播放状态，可用于客户端轮询
   - `GET /show_joint?isShow=true|false` → 控制所有关节/骨骼显隐（同步），返回 `{"status":"succ","data":{"visible":true|false}}`
   - `GET /show_polygon?isShow=true|false` → 控制所有多边形对象显隐（同步），返回 `{"status":"succ","data":{"visible":true|false}}`
   - `GET /open_project?path=...` → 打开指定 C4D 文件（会关闭之前的文档）
@@ -53,6 +55,8 @@ def handle_show_joint(request):
   - `http://127.0.0.1:8090/ping`
   - `http://127.0.0.1:8090/get_joint` → 返回 `{"status":"succ","data":{"hasJoint":true}}`
   - `http://127.0.0.1:8090/get_animation` → 返回 `{"status":"succ","data":{"hasAnimation":true}}`
+  - `http://127.0.0.1:8090/play` → 立即启动播放并返回 `{"status":"succ","data":{"toggled":true}}`
+  - `http://127.0.0.1:8090/get_play_status` → 返回当前播放状态，例如 `{"status":"succ","data":{"isPlaying":false}}`
   - `http://127.0.0.1:8090/show_joint?isShow=false` → 返回 `{"status":"succ","data":{"visible":false}}`
   - `http://127.0.0.1:8090/show_joint?isShow=true` → 返回 `{"status":"succ","data":{"visible":true}}`
   - `http://127.0.0.1:8090/show_polygon?isShow=false`

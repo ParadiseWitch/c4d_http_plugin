@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Cinema 4D 场景查询与视图控制工具函数模块。"""
+
 import os
 
 import c4d
@@ -430,9 +431,7 @@ def set_layout(layout_name):
     """加载指定的布局文件并刷新 Cinema 4D 界面。"""
     layout_path, searched_dirs = _find_layout_file(layout_name)
     if not layout_path:
-        raise IOError(
-            "layout-not-found: {}".format(",".join(searched_dirs))
-        )
+        raise IOError("layout-not-found: {}".format(",".join(searched_dirs)))
 
     documents.LoadFile(layout_path)
 
