@@ -18,7 +18,7 @@ def register(http_server):
     http_server.route("get_joint", handle_get_joint)
     http_server.route("get_animation", handle_get_animation)
     http_server.route("play", handle_play)
-    http_server.route("get_play_status", handle_get_play_status)
+    http_server.route("is_playing", handle_is_playing)
     http_server.route("show_joint", handle_show_joint)
     http_server.route("filter_joint", handle_filter_joint)
     http_server.route("show_polygon", handle_show_polygon)
@@ -63,8 +63,8 @@ def handle_play(request=None):
     return succ({"toggled": True})
 
 
-def handle_get_play_status(request=None):
-    """查询当前工程的播放状态。"""
+def handle_is_playing(request=None):
+    """查询当前工程的是否正在播放。"""
     is_playing = c4d.IsCommandChecked(12412)
     return succ({"is_palying": is_playing})
 
