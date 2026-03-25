@@ -21,9 +21,9 @@ def register(http_server):
     http_server.route("is_playing", handle_is_playing)
     http_server.route("show_joint", handle_show_joint)
     http_server.route("show_polygon", handle_show_polygon)
+    http_server.route("show_weight", handle_show_weight)
     http_server.route("open_project", handle_open_project)
     http_server.route("set_display_mode", handle_set_display_mode)
-    http_server.route("select_weight_tag", handle_select_weight_tag)
     http_server.route("set_layout", handle_set_layout)
 
 
@@ -40,54 +40,6 @@ def erro(msg):
 def handle_ping():
     """返回服务健康检查结果。"""
     return json.dumps(succ({"msg": "pong"}), ensure_ascii=False)
-
-
-def handle_get_joint(request=None):
-    """查询当前文档中是否存在关节或骨骼对象。"""
-    joints = utils.get_all_joints()
-    return succ({"hasJoint": bool(joints)})
-
-
-def handle_get_animation(request=None):
-    """查询当前文档是否包含动画数据。"""
-    return succ({"hasAnimation": utils.has_animation()})
-
-
-def handle_play(request=None):
-    """跳转到第一帧并开始单次播放。"""
-    # 设置单次播放
-    c4d.CallCommand(12426)
-    # 跳转到第一帧
-    c4d.CallCommand(12501)
-    # 播放
-    c4d.CallCommand(12412)
-    return succ()
-
-
-def handle_is_playing(request=None):
-    """查询当前工程的是否正在播放。"""
-    is_playing = c4d.IsCommandChecked(12412)
-    return succ({"is_playing": is_playing})
-
-
-def handle_show_joint(request=None):
-    """控制当前文档中所有关节对象在编辑器中的显示状态。"""
-    is_show = True
-    if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), True)
-    utils.set_joint_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
-    utils.enabel_joint_display_filter(is_show)
-    return succ({"visible": bool(is_show)})
-
-
-def handle_show_polygon(request=None):
-    """控制当前文档中所有多边形对象在编辑器中的显示状态。"""
-    is_show = True
-    if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), True)
-    utils.set_polygon_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
-    utils.enabel_polygon_display_filter(is_show)
-    return succ({"visible": bool(is_show)})
 
 
 def handle_open_project(request=None):
@@ -151,13 +103,33 @@ def handle_set_display_mode(request=None):
     return succ({"displayMode": mode, "displayModeName": display_mode})
 
 
-def handle_select_weight_tag(request=None):
-    """批量选中或取消选中当前文档中的权重相关标签。"""
-    is_select = True
+def handle_show_joint(request=None):
+    """控制当前文档中所有关节对象在编辑器中的显示状态。"""
+    is_show = True
     if request is not None:
-        is_select = utils._as_bool(request.get_param("isSelect"), False)
-    count = utils.select_all_weight_tags(is_select)
-    return succ({"selected": bool(is_select), "count": count})
+        is_show = utils._as_bool(request.get_param("isShow"), True)
+    utils.set_joint_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
+    utils.enabel_joint_display_filter(is_show)
+    return succ({"visible": bool(is_show)})
+
+
+def handle_show_polygon(request=None):
+    """控制当前文档中所有多边形对象在编辑器中的显示状态。"""
+    is_show = True
+    if request is not None:
+        is_show = utils._as_bool(request.get_param("isShow"), True)
+    utils.set_polygon_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
+    utils.enabel_polygon_display_filter(is_show)
+    return succ({"visible": bool(is_show)})
+
+
+def handle_show_weight(request=None):
+    """显示权重影响"""
+    is_show = True
+    if request is not None:
+        is_show = utils._as_bool(request.get_param("isSelect"), False)
+    utils.select_all_weight_tags(is_show)
+    return succ({"visible": bool(is_show)})
 
 
 def handle_set_layout(request=None):
@@ -172,3 +144,31 @@ def handle_set_layout(request=None):
     except Exception as exc:
         return erro("加载布局失败: %s" % str(exc))
     return succ({"layoutName": layout_name, "layoutPath": layout_path})
+
+
+def handle_get_joint(request=None):
+    """查询当前文档中是否存在关节或骨骼对象。"""
+    joints = utils.get_all_joints()
+    return succ({"hasJoint": bool(joints)})
+
+
+def handle_get_animation(request=None):
+    """查询当前文档是否包含动画数据。"""
+    return succ({"hasAnimation": utils.has_animation()})
+
+
+def handle_play(request=None):
+    """跳转到第一帧并开始单次播放。"""
+    # 设置单次播放
+    c4d.CallCommand(12426)
+    # 跳转到第一帧
+    c4d.CallCommand(12501)
+    # 播放
+    c4d.CallCommand(12412)
+    return succ()
+
+
+def handle_is_playing(request=None):
+    """查询当前工程的是否正在播放。"""
+    is_playing = c4d.IsCommandChecked(12412)
+    return succ({"is_playing": is_playing})
