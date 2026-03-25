@@ -17,6 +17,7 @@ def register(http_server):
     http_server.route("ping", handle_ping)
     http_server.route("open_project", handle_open_project)
     http_server.route("set_display_mode", handle_set_display_mode)
+    http_server.route("set_view_clipping", handle_set_view_clipping)
     http_server.route("show_joint", handle_show_joint)
     http_server.route("show_polygon", handle_show_polygon)
     http_server.route("show_weight", handle_show_weight)
@@ -102,6 +103,23 @@ def handle_set_display_mode(request=None):
     except Exception as exc:
         return erro(str(exc))
     return succ({"displayMode": mode, "displayModeName": display_mode})
+
+
+def handle_set_view_clipping(request=None):
+    """设置当前活动视图的近裁剪与远裁剪范围。"""
+    near_cm = 0
+    far_cm = 2147483647
+    if request is not None:
+        near_cm = request.get_param("nearCm")
+        far_cm = request.get_param("farCm")
+
+    try:
+        result = utils.set_active_view_clipping(near_cm, far_cm)
+    except ValueError as exc:
+        return erro(str(exc))
+    except Exception as exc:
+        return erro(str(exc))
+    return succ(result)
 
 
 def handle_show_joint(request=None):

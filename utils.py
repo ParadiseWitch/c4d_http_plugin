@@ -28,6 +28,14 @@ def _as_bool(val, default=True):
     return default
 
 
+def _as_float(val, default):
+    """将输入值转换为浮点数，失败时返回默认值。"""
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return float(default)
+
+
 def iter_objects(root):
     """从根对象开始深度优先遍历所有层级对象。"""
     op = root
@@ -291,6 +299,48 @@ def set_active_view_display_mode(display_mode_name):
 
     c4d.EventAdd()
     return mode
+
+
+def set_active_view_clipping(near_cm=0, far_cm=2147483647):
+    """设置当前文档工程设置中的视图近裁剪与远裁剪范围，单位为厘米。"""
+    doc = documents.GetActiveDocument()
+    if doc is None:
+        raise RuntimeError("当前没有激活的文档")
+
+    near_cm = _as_float(near_cm, 0)
+    far_cm = _as_float(far_cm, 2147483647)
+
+    if near_cm < 0:
+        raise ValueError("nearCm 不能小于 0")
+    if far_cm < near_cm:
+        raise ValueError("farCm 不能小于 nearCm")
+
+    preset_id = getattr(c4d, "DOCUMENT_CLIPPING_PRESET", None)
+    preset_custom = getattr(c4d, "DOCUMENT_CLIPPING_PRESET_CUSTOM", None)
+    near_id = getattr(c4d, "DOCUMENT_CLIPPING_PRESET_NEAR", None)
+    far_id = getattr(c4d, "DOCUMENT_CLIPPING_PRESET_FAR", None)
+    if (
+        preset_id is None
+        or preset_custom is None
+        or near_id is None
+        or far_id is None
+    ):
+        raise RuntimeError("当前 Cinema 4D 版本不支持通过工程设置设置裁剪范围")
+
+    # Project Settings clipping uses meters in the R19 description, while the route uses centimeters.
+    near_m = near_cm / 100.0
+    far_m = far_cm / 100.0
+    doc[preset_id] = preset_custom
+    doc[near_id] = near_m
+    doc[far_id] = far_m
+
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+
+    c4d.EventAdd()
+    return {"nearCm": near_cm, "farCm": far_cm}
 
 
 def center_model_in_active_view():
