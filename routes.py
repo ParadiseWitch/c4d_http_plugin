@@ -20,9 +20,7 @@ def register(http_server):
     http_server.route("play", handle_play)
     http_server.route("is_playing", handle_is_playing)
     http_server.route("show_joint", handle_show_joint)
-    http_server.route("filter_joint", handle_filter_joint)
     http_server.route("show_polygon", handle_show_polygon)
-    http_server.route("filter_polygon", handle_filter_polygon)
     http_server.route("open_project", handle_open_project)
     http_server.route("set_display_mode", handle_set_display_mode)
     http_server.route("select_weight_tag", handle_select_weight_tag)
@@ -41,7 +39,7 @@ def erro(msg):
 
 def handle_ping():
     """返回服务健康检查结果。"""
-    return json.dumps(succ({"msg": "服务正常"}), ensure_ascii=False)
+    return json.dumps(succ({"msg": "pong"}), ensure_ascii=False)
 
 
 def handle_get_joint(request=None):
@@ -78,6 +76,7 @@ def handle_show_joint(request=None):
     if request is not None:
         is_show = utils._as_bool(request.get_param("isShow"), True)
     utils.set_joint_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
+    utils.enabel_joint_display_filter(is_show)
     return succ({"visible": bool(is_show)})
 
 
@@ -87,23 +86,6 @@ def handle_show_polygon(request=None):
     if request is not None:
         is_show = utils._as_bool(request.get_param("isShow"), True)
     utils.set_polygon_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
-    return succ({"visible": bool(is_show)})
-
-
-def handle_filter_joint(request=None):
-    """切换当前视图中关节显示过滤器的开关状态。"""
-    is_show = True
-    if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), True)
-    utils.enabel_joint_display_filter(is_show)
-    return succ({"visible": bool(is_show)})
-
-
-def handle_filter_polygon(request=None):
-    """切换当前视图中多边形相关显示过滤器的开关状态。"""
-    is_show = True
-    if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), True)
     utils.enabel_polygon_display_filter(is_show)
     return succ({"visible": bool(is_show)})
 
@@ -164,14 +146,8 @@ def handle_set_display_mode(request=None):
             "不支持的显示模式: %s，可选值为: %s"
             % (display_mode, "、".join(sorted(utils.DISPLAY_MODE_MAP.keys())))
         )
-    except RuntimeError as exc:
-        runtime_error_map = {
-            "no-active-document": "当前没有活动文档",
-            "no-active-basedraw": "当前没有可用的活动视图",
-        }
-        return erro(runtime_error_map.get(str(exc), "设置显示模式失败"))
     except Exception as exc:
-        return erro("设置显示模式失败: %s" % str(exc))
+        return erro(str(exc))
     return succ({"displayMode": mode, "displayModeName": display_mode})
 
 
