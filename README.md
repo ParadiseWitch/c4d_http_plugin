@@ -9,6 +9,7 @@
 - 默认监听地址：`127.0.0.1:8090`
 - 支持通过 HTTP 查询当前工程是否包含骨骼、动画、是否正在播放
 - 支持通过 HTTP 控制关节、多边形显示状态
+- 支持一键切入摄像机视角或自动居中几何体模型
 - 支持打开工程、切换视图显示模式、切换布局
 - 所有会操作 C4D 文档或界面的逻辑，都会切回主线程执行
 
@@ -216,6 +217,23 @@ $env:C4D_HTTP_PORT = '8090'
 {"status":"succ","data":{"layoutName":"111","layoutPath":"C:\\...\\111.l4d"}}
 ```
 
+### 12. 切入摄像机或居中模型
+
+- `GET /center_model`
+- 行为：
+  - 如果场景中存在摄像机对象，则将当前活动视图切换到第一个摄像机视角
+  - 如果场景中没有摄像机对象，则切回编辑器摄像机并执行 `Frame Geometry`
+
+成功示例：
+
+```json
+{"status":"succ","data":{"mode":"camera","cameraName":"Camera"}}
+```
+
+```json
+{"status":"succ","data":{"mode":"geometry"}}
+```
+
 ## 手动验证
 
 Cinema 4D 加载插件后，可使用以下命令检查：
@@ -233,6 +251,7 @@ curl "http://127.0.0.1:8090/show_weight?isShow=true"
 curl "http://127.0.0.1:8090/open_project?path=C:%5Cpath%5Cto%5Cscene.c4d"
 curl "http://127.0.0.1:8090/set_display_mode?displayMode=%E5%85%89%E5%BD%B1%E7%9D%80%E8%89%B2"
 curl "http://127.0.0.1:8090/set_layout?layoutName=111"
+curl "http://127.0.0.1:8090/center_model"
 ```
 
 建议同时检查：

@@ -78,6 +78,11 @@ def get_all_polygons():
     return find_objects_by_types((getattr(c4d, "Opolygon", 0),))
 
 
+def get_all_cameras():
+    """返回当前文档中的所有摄像机对象。"""
+    return find_objects_by_types((getattr(c4d, "Ocamera", 0),))
+
+
 def _iter_tags():
     """遍历文档中所有对象挂载的标签。"""
     for obj in get_all_objects():
@@ -286,6 +291,37 @@ def set_active_view_display_mode(display_mode_name):
 
     c4d.EventAdd()
     return mode
+
+
+def center_model_in_active_view():
+    """若场景存在摄像机则切入摄像机视角，否则对几何体执行居中显示。"""
+    doc = documents.GetActiveDocument()
+
+    base_draw = doc.GetActiveBaseDraw()
+    if base_draw is None:
+        raise RuntimeError("当前没有可用的活动视图")
+
+    cameras = get_all_cameras()
+    if cameras:
+        camera = cameras[0]
+        base_draw.SetSceneCamera(camera)
+        try:
+            c4d.DrawViews(
+                c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW
+            )
+        except Exception:
+            pass
+        c4d.EventAdd()
+        return {"mode": "camera", "cameraName": camera.GetName()}
+
+    base_draw.SetSceneCamera(None)
+    c4d.CallCommand(12148)  # Frame Geometry
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+    c4d.EventAdd()
+    return {"mode": "geometry"}
 
 
 def select_all_weight_tags(is_select=True):

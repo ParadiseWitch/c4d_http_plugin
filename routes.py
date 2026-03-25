@@ -21,6 +21,7 @@ def register(http_server):
     http_server.route("show_polygon", handle_show_polygon)
     http_server.route("show_weight", handle_show_weight)
     http_server.route("set_layout", handle_set_layout)
+    http_server.route("center_model", handle_center_model)
     http_server.route("get_joint", handle_get_joint)
     http_server.route("get_animation", handle_get_animation)
     http_server.route("play", handle_play)
@@ -144,6 +145,15 @@ def handle_set_layout(request=None):
     except Exception as exc:
         return erro("加载布局失败: %s" % str(exc))
     return succ({"layoutName": layout_name, "layoutPath": layout_path})
+
+
+def handle_center_model(request=None):
+    """若场景存在摄像机则切入摄像机视角，否则居中显示几何体模型。"""
+    try:
+        result = utils.center_model_in_active_view()
+    except Exception as exc:
+        return erro(str(exc))
+    return succ(result)
 
 
 def handle_get_joint(request=None):
