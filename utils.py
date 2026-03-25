@@ -315,24 +315,9 @@ def set_active_view_clipping(near_cm=0, far_cm=2147483647):
     if far_cm < near_cm:
         raise ValueError("farCm 不能小于 nearCm")
 
-    preset_id = getattr(c4d, "DOCUMENT_CLIPPING_PRESET", None)
-    preset_custom = getattr(c4d, "DOCUMENT_CLIPPING_PRESET_CUSTOM", None)
-    near_id = getattr(c4d, "DOCUMENT_CLIPPING_PRESET_NEAR", None)
-    far_id = getattr(c4d, "DOCUMENT_CLIPPING_PRESET_FAR", None)
-    if (
-        preset_id is None
-        or preset_custom is None
-        or near_id is None
-        or far_id is None
-    ):
-        raise RuntimeError("当前 Cinema 4D 版本不支持通过工程设置设置裁剪范围")
-
-    # Project Settings clipping uses meters in the R19 description, while the route uses centimeters.
-    near_m = near_cm / 100.0
-    far_m = far_cm / 100.0
-    doc[preset_id] = preset_custom
-    doc[near_id] = near_m
-    doc[far_id] = far_m
+    doc[c4d.DOCUMENT_CLIPPING_PRESET] = c4d.DOCUMENT_CLIPPING_PRESET_CUSTOM
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_NEAR] = near_cm / 100.0
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_FAR] = far_cm / 100.0
 
     try:
         c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
