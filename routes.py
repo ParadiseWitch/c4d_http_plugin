@@ -15,16 +15,16 @@ import utils
 def register(http_server):
     """注册所有对外暴露的 HTTP 路由。"""
     http_server.route("ping", handle_ping)
+    http_server.route("open_project", handle_open_project)
+    http_server.route("set_display_mode", handle_set_display_mode)
+    http_server.route("show_joint", handle_show_joint)
+    http_server.route("show_polygon", handle_show_polygon)
+    http_server.route("show_weight", handle_show_weight)
+    http_server.route("set_layout", handle_set_layout)
     http_server.route("get_joint", handle_get_joint)
     http_server.route("get_animation", handle_get_animation)
     http_server.route("play", handle_play)
     http_server.route("is_playing", handle_is_playing)
-    http_server.route("show_joint", handle_show_joint)
-    http_server.route("show_polygon", handle_show_polygon)
-    http_server.route("show_weight", handle_show_weight)
-    http_server.route("open_project", handle_open_project)
-    http_server.route("set_display_mode", handle_set_display_mode)
-    http_server.route("set_layout", handle_set_layout)
 
 
 def succ(data=None):
