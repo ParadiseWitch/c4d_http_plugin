@@ -79,7 +79,7 @@ def handle_open_project(request=None):
     prev = documents.GetActiveDocument()
     documents.InsertBaseDocument(doc)
     documents.SetActiveDocument(doc)
-    c4d.EventAdd()
+    utils.set_active_view_clipping()
     try:
         if prev and prev != doc:
             documents.KillDocument(prev)
