@@ -152,9 +152,6 @@ $env:C4D_HTTP_PORT = '8090'
 - `GET /show_weight?isShow=true|false`
 - 参数：
   - `isShow`：可选，默认 `false`
-- 返回字段：
-  - `selected`：本次目标选中状态
-  - `count`：处理到的权重标签数量
 
 示例：
 
