@@ -156,7 +156,7 @@ $env:C4D_HTTP_PORT = '8090'
 示例：
 
 ```json
-{"status":"succ","data":{"selected":true,"count":3}}
+{ "status": "succ", "data": { "visible": false } }
 ```
 
 ### 9. 打开工程文件
@@ -229,7 +229,7 @@ curl "http://127.0.0.1:8090/show_joint?isShow=false"
 curl "http://127.0.0.1:8090/show_joint?isShow=true"
 curl "http://127.0.0.1:8090/show_polygon?isShow=false"
 curl "http://127.0.0.1:8090/show_polygon?isShow=true"
-curl "http://127.0.0.1:8090/show_weight?isSelect=true"
+curl "http://127.0.0.1:8090/show_weight?isShow=true"
 curl "http://127.0.0.1:8090/open_project?path=C:%5Cpath%5Cto%5Cscene.c4d"
 curl "http://127.0.0.1:8090/set_display_mode?displayMode=%E5%85%89%E5%BD%B1%E7%9D%80%E8%89%B2"
 curl "http://127.0.0.1:8090/set_layout?layoutName=111"
