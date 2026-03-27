@@ -8,8 +8,13 @@
 import c4d
 import json
 import os
+import sys
 from c4d import documents
 import utils
+
+
+if not hasattr(sys, "maxint"):
+    sys.maxint = sys.maxsize
 
 
 def register(http_server):
@@ -107,14 +112,14 @@ def handle_set_display_mode(request=None):
 
 def handle_set_view_clipping(request=None):
     """设置当前活动视图的近裁剪与远裁剪范围。"""
-    near_cm = 0
-    far_cm = 2147483647
+    near = 0
+    far = sys.maxint
     if request is not None:
-        near_cm = request.get_param("nearCm")
-        far_cm = request.get_param("farCm")
+        near = request.get_param("nearCm")
+        far = request.get_param("farCm")
 
     try:
-        result = utils.set_active_view_clipping(near_cm, far_cm)
+        result = utils.set_active_view_clipping(near, far)
     except ValueError as exc:
         return erro(str(exc))
     except Exception as exc:

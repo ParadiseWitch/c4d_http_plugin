@@ -2,6 +2,7 @@
 """Cinema 4D 场景查询与视图控制工具函数模块。"""
 
 import os
+import sys
 
 import c4d
 from c4d import documents
@@ -301,23 +302,23 @@ def set_active_view_display_mode(display_mode_name):
     return mode
 
 
-def set_active_view_clipping(near_cm=0, far_cm=2147483647):
+def set_active_view_clipping(near=0, far=sys.maxint):
     """设置当前文档工程设置中的视图近裁剪与远裁剪范围，单位为厘米。"""
     doc = documents.GetActiveDocument()
     if doc is None:
         raise RuntimeError("当前没有激活的文档")
 
-    near_cm = _as_float(near_cm, 0)
-    far_cm = _as_float(far_cm, 2147483647)
+    near = _as_float(near, 0)
+    far = _as_float(far, sys.maxint)
 
-    if near_cm < 0:
+    if near < 0:
         raise ValueError("nearCm 不能小于 0")
-    if far_cm < near_cm:
+    if far < near:
         raise ValueError("farCm 不能小于 nearCm")
 
     doc[c4d.DOCUMENT_CLIPPING_PRESET] = c4d.DOCUMENT_CLIPPING_PRESET_CUSTOM
-    doc[c4d.DOCUMENT_CLIPPING_PRESET_NEAR] = near_cm / 100.0
-    doc[c4d.DOCUMENT_CLIPPING_PRESET_FAR] = far_cm / 100.0
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_NEAR] = near
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_FAR] = far
 
     try:
         c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
@@ -325,7 +326,7 @@ def set_active_view_clipping(near_cm=0, far_cm=2147483647):
         pass
 
     c4d.EventAdd()
-    return {"nearCm": near_cm, "farCm": far_cm}
+    return {"near": near, "far": far}
 
 
 def center_model_in_active_view():

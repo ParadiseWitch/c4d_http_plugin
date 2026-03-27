@@ -220,10 +220,10 @@ $env:C4D_HTTP_PORT = '8090'
 
 ### 12. 设置活动视图裁剪范围
 
-- `GET /set_view_clipping?nearCm=0&farCm=2147483647`
+- `GET /set_view_clipping?nearCm=0&farCm=sys.maxint`
 - 参数：
   - `nearCm`：可选，近裁剪距离，单位厘米，默认 `0`
-  - `farCm`：可选，远裁剪距离，单位厘米，默认 `2147483647`
+  - `farCm`：可选，远裁剪距离，单位厘米，默认 `sys.maxint`
 - 行为：
   - 设置当前文档“工程设置”中的视图近裁剪与远裁剪范围
   - 自动将裁剪预设切换为自定义
@@ -232,7 +232,7 @@ $env:C4D_HTTP_PORT = '8090'
 成功示例：
 
 ```json
-{"status":"succ","data":{"nearCm":0.0,"farCm":2147483647.0}}
+{"status":"succ","data":{"near":0.0,"far":sys.maxint}}
 ```
 
 ### 13. 切入摄像机或居中模型
@@ -268,7 +268,7 @@ curl "http://127.0.0.1:8090/show_polygon?isShow=true"
 curl "http://127.0.0.1:8090/show_weight?isShow=true"
 curl "http://127.0.0.1:8090/open_project?path=C:%5Cpath%5Cto%5Cscene.c4d"
 curl "http://127.0.0.1:8090/set_display_mode?displayMode=%E5%85%89%E5%BD%B1%E7%9D%80%E8%89%B2"
-curl "http://127.0.0.1:8090/set_view_clipping?nearCm=0&farCm=2147483647"
+curl "http://127.0.0.1:8090/set_view_clipping?nearCm=0&farCm=sys.maxint"
 curl "http://127.0.0.1:8090/set_layout?layoutName=111"
 curl "http://127.0.0.1:8090/center_model"
 ```
