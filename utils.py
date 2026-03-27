@@ -68,8 +68,9 @@ def find_objects_by_types(type_ids):
     matched = []
     for obj in objs:
         try:
+            obj_type = obj.GetType()
             for tid in type_ids:
-                if tid and obj.CheckType(tid):
+                if tid and obj_type == tid:
                     matched.append(obj)
                     break
         except Exception:
@@ -162,8 +163,9 @@ def _has_type_match(nodes, type_ids):
 
     for node in nodes:
         try:
+            node_type = node.GetType()
             for tid in valid_type_ids:
-                if node.CheckType(tid):
+                if node_type == tid:
                     return True
         except Exception:
             pass
@@ -383,8 +385,9 @@ def select_all_weight_tags(is_select=True):
         try:
             for tag in obj.GetTags() or []:
                 try:
+                    tag_type = tag.GetType()
                     for tid in weight_tag_ids:
-                        if tag.CheckType(tid):
+                        if tag_type == tid:
                             if is_select:
                                 tag.SetBit(c4d.BIT_ACTIVE)
                             else:

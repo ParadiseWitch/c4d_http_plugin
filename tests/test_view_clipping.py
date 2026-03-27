@@ -8,6 +8,18 @@ class FakeDoc(dict):
     pass
 
 
+class FakeObject(object):
+    def __init__(self, type_id, check_type_matches=None):
+        self._type_id = type_id
+        self._check_type_matches = set(check_type_matches or [])
+
+    def GetType(self):
+        return self._type_id
+
+    def CheckType(self, type_id):
+        return type_id in self._check_type_matches
+
+
 class ViewClippingTests(unittest.TestCase):
     def setUp(self):
         self.original_modules = {
@@ -55,8 +67,18 @@ class ViewClippingTests(unittest.TestCase):
 
         self.assertEqual("custom", self.doc["preset"])
         self.assertEqual(0.0, self.doc["near"])
-        self.assertEqual(float(sys.maxint) / 100.0, self.doc["far"])
+        self.assertEqual(float(sys.maxint), self.doc["far"])
         self.assertEqual({"near": 0.0, "far": float(sys.maxint)}, result)
+
+    def test_find_objects_by_types_uses_exact_get_type_match(self):
+        fake_joint = FakeObject(type_id=101, check_type_matches=[101, 202])
+        fake_polygon = FakeObject(type_id=202, check_type_matches=[202])
+
+        self.utils.get_all_objects = lambda: [fake_joint, fake_polygon]
+
+        matched = self.utils.find_objects_by_types((202,))
+
+        self.assertEqual([fake_polygon], matched)
 
 
 if __name__ == "__main__":
