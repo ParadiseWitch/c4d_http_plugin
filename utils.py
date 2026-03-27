@@ -39,14 +39,15 @@ def _as_float(val, default):
 
 def iter_objects(root):
     """从根对象开始深度优先遍历所有层级对象。"""
+    result = []
     op = root
     while op:
-        yield op
+        result.append(op)
         child = op.GetDown()
         if child:
-            for x in iter_objects(child):
-                yield x
+            result.extend(iter_objects(child))
         op = op.GetNext()
+    return result
 
 
 def get_all_objects():
@@ -95,37 +96,36 @@ def get_all_cameras():
 
 def _iter_tags():
     """遍历文档中所有对象挂载的标签。"""
+    tags = []
     for obj in get_all_objects():
         try:
-            for tag in obj.GetTags() or []:
-                yield tag
+            tags.extend(obj.GetTags() or [])
         except Exception:
             pass
+    return tags
 
 
 def _iter_materials():
     """遍历指定文档或当前活动文档中的全部材质。"""
     doc = documents.GetActiveDocument()
+    materials = []
     material = doc.GetFirstMaterial()
     while material:
-        yield material
+        materials.append(material)
         material = material.GetNext()
+    return materials
 
 
 def _iter_animatables():
     """遍历可能包含动画轨道的文档节点集合。"""
     doc = documents.GetActiveDocument()
+    nodes = [doc]
 
-    yield doc
+    nodes.extend(get_all_objects())
+    nodes.extend(_iter_tags())
+    nodes.extend(_iter_materials())
 
-    for obj in get_all_objects():
-        yield obj
-
-    for tag in _iter_tags():
-        yield tag
-
-    for material in _iter_materials():
-        yield material
+    return nodes
 
 
 def _get_track_key_count(track):
@@ -433,6 +433,7 @@ def _iter_existing_layout_dirs():
     )
 
     seen = set()
+    result = []
     for base_dir in candidate_dirs:
         if not base_dir:
             continue
@@ -443,7 +444,8 @@ def _iter_existing_layout_dirs():
                 continue
             seen.add(key)
             if os.path.isdir(path):
-                yield path
+                result.append(path)
+    return result
 
 
 def _find_layout_file(layout_name):
