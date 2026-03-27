@@ -143,16 +143,218 @@ def _get_track_key_count(track):
     return 0
 
 
-def _has_keyframe_animation():
-    """检查文档是否包含关键帧动画。"""
+def _get_node_category(node):
+    """返回动画节点类别名称。"""
+    doc = documents.GetActiveDocument()
+    if node == doc:
+        return "document"
+    if node in get_all_objects():
+        return "object"
+    if node in _iter_tags():
+        return "tag"
+    if node in _iter_materials():
+        return "material"
+    return "unknown"
+
+
+def _get_node_type_name(node):
+    """尽量返回节点类型名称。"""
+    try:
+        type_name = node.GetTypeName()
+        if type_name:
+            return type_name
+    except Exception:
+        pass
+
+    try:
+        return str(node.GetType())
+    except Exception:
+        return "unknown"
+
+
+def _get_node_name(node):
+    """尽量返回节点名称。"""
+    try:
+        name = node.GetName()
+        if name:
+            return name
+    except Exception:
+        pass
+    return ""
+
+
+def _get_desc_level_value(level, field_name):
+    """安全读取 DescLevel 的字段值。"""
+    try:
+        value = getattr(level, field_name)
+        if value is not None:
+            return value
+    except Exception:
+        pass
+    try:
+        getter = getattr(level, "Get" + field_name.capitalize())
+        return getter()
+    except Exception:
+        pass
+    return None
+
+
+def _get_track_description(track):
+    """尽量返回轨道属性描述。"""
+    info = {
+        "trackName": "",
+        "descId": [],
+        "descIdText": "",
+    }
+
+    try:
+        name = track.GetName()
+        if name:
+            info["trackName"] = str(name)
+    except Exception:
+        pass
+
+    try:
+        desc_id = track.GetDescriptionID()
+        if desc_id is not None:
+            levels = []
+            try:
+                depth = int(desc_id.GetDepth())
+            except Exception:
+                depth = 0
+
+            for idx in range(depth):
+                try:
+                    level = desc_id[idx]
+                except Exception:
+                    break
+                levels.append(
+                    {
+                        "id": _get_desc_level_value(level, "id"),
+                        "dtype": _get_desc_level_value(level, "dtype"),
+                        "creator": _get_desc_level_value(level, "creator"),
+                    }
+                )
+            info["descId"] = levels
+            if levels:
+                info["descIdText"] = ".".join(
+                    [str(level.get("id")) for level in levels if level.get("id") is not None]
+                )
+    except Exception:
+        pass
+
+    return info
+
+
+def _get_key_time_info(key, fps):
+    """返回关键帧时间信息。"""
+    result = {"frame": None, "seconds": None}
+    try:
+        time_obj = key.GetTime()
+    except Exception:
+        return result
+
+    try:
+        result["frame"] = int(time_obj.GetFrame(fps))
+    except Exception:
+        pass
+    try:
+        result["seconds"] = float(time_obj.Get())
+    except Exception:
+        pass
+    return result
+
+
+def _get_key_value(curve, key):
+    """尽量返回关键帧值。"""
+    try:
+        return float(key.GetValue())
+    except Exception:
+        pass
+    try:
+        return float(key.GetValue(curve))
+    except Exception:
+        pass
+    try:
+        return float(curve.GetValue(key.GetTime()))
+    except Exception:
+        pass
+    return None
+
+
+def _get_track_keys(track, doc):
+    """返回轨道上的关键帧详情。"""
+    keys = []
+    if track is None or doc is None:
+        return keys
+
+    try:
+        curve = track.GetCurve()
+    except Exception:
+        curve = None
+
+    if curve is None:
+        return keys
+
+    try:
+        fps = doc.GetFps()
+    except Exception:
+        fps = 30
+
+    try:
+        key_count = int(curve.GetKeyCount())
+    except Exception:
+        key_count = 0
+
+    for idx in range(key_count):
+        try:
+            key = curve.GetKey(idx)
+        except Exception:
+            continue
+
+        time_info = _get_key_time_info(key, fps)
+        keys.append(
+            {
+                "index": idx,
+                "frame": time_info.get("frame"),
+                "seconds": time_info.get("seconds"),
+                "value": _get_key_value(curve, key),
+            }
+        )
+
+    return keys
+
+
+def get_animation_details():
+    """返回当前文档中的关键帧动画命中详情。"""
+    doc = documents.GetActiveDocument()
+    animated_nodes = []
     for node in _iter_animatables():
         try:
+            tracks = []
             for track in node.GetCTracks() or []:
-                if _get_track_key_count(track) > 1:
-                    return True
+                key_count = _get_track_key_count(track)
+                if key_count > 1:
+                    track_info = _get_track_description(track)
+                    track_info["keyCount"] = key_count
+                    track_info["keys"] = _get_track_keys(track, doc)
+                    tracks.append(track_info)
+            if tracks:
+                animated_nodes.append(
+                    {
+                        "category": _get_node_category(node),
+                        "typeName": _get_node_type_name(node),
+                        "name": _get_node_name(node),
+                        "trackCount": len(tracks),
+                        "tracks": tracks,
+                    }
+                )
         except Exception:
             pass
-    return False
+    return {
+        "hasAnimation": bool(animated_nodes),
+        "animatedNodes": animated_nodes,
+    }
 
 
 def _has_type_match(nodes, type_ids):
@@ -228,10 +430,7 @@ def _has_simulation_animation():
 
 def has_animation():
     """检查当前文档是否存在可识别的动画内容。"""
-    if _has_keyframe_animation():
-        return True
-
-    return False
+    return get_animation_details().get("hasAnimation", False)
 
 
 def set_joint_visibility(value):
