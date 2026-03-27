@@ -192,6 +192,12 @@ def handle_get_animation(request=None):
 
 def handle_play(request=None):
     """跳转到第一帧并开始单次播放。"""
+    doc = documents.GetActiveDocument()
+    if doc is not None:
+        real_min = doc.GetMinTime()
+        real_max = doc.GetMaxTime()
+        doc.SetLoopMinTime(real_min)
+        doc.SetLoopMaxTime(real_max)
     # 设置单次播放
     c4d.CallCommand(12426)
     # 跳转到第一帧
