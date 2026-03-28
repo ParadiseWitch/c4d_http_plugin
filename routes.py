@@ -59,7 +59,7 @@ def handle_open_project(request=None):
         p = os.path.normpath(p)
     except Exception:
         pass
-    if not os.path.isfile(p):
+    if not os.path.isfile(p.decode("utf-8")):
         return erro("工程文件不存在: %s" % p)
 
     flags = getattr(c4d, "SCENEFILTER_ALL", 0)
