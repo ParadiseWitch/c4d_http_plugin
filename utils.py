@@ -238,7 +238,11 @@ def _get_track_description(track):
             info["descId"] = levels
             if levels:
                 info["descIdText"] = ".".join(
-                    [str(level.get("id")) for level in levels if level.get("id") is not None]
+                    [
+                        str(level.get("id"))
+                        for level in levels
+                        if level.get("id") is not None
+                    ]
                 )
     except Exception:
         pass
@@ -501,6 +505,20 @@ def set_active_view_display_mode(display_mode_name):
 
     c4d.EventAdd()
     return mode
+
+
+def set_active_view_default_perspective():
+    """将当前活动视图恢复为默认透视编辑器视图，并尽量切换为单视图。"""
+    doc = documents.GetActiveDocument()
+    base_draw = doc.GetActiveBaseDraw()
+    base_draw[c4d.BASEDRAW_DATA_PROJECTION] = c4d.BASEDRAW_PROJECTION_PERSPECTIVE
+    c4d.CallCommand(13640)
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+
+    c4d.EventAdd()
 
 
 def set_active_view_clipping(near=0, far=sys.maxint):
