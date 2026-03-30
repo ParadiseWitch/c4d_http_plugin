@@ -85,7 +85,8 @@ def handle_open_project(request=None):
     documents.InsertBaseDocument(doc)
     documents.SetActiveDocument(doc)
     utils.set_active_view_clipping()
-    utils.set_active_view_default_perspective()
+    # 设置单视图
+    c4d.CallCommand(13620)
     try:
         if prev and prev != doc:
             documents.KillDocument(prev)
