@@ -80,7 +80,7 @@ def handle_get_joint(request=None):
 def handle_get_animation(request=None):
     """查询当前文档是否包含动画数据。"""
     try:
-        return succ(utils.get_animation_details())
+        return succ({"hasAnimation": utils.has_animation()})
     except Exception as exc:
         return erro(str(exc))
 
