@@ -30,6 +30,7 @@ def register(http_server):
     http_server.route("center_model", handle_center_model)
     http_server.route("get_joint", handle_get_joint)
     http_server.route("get_animation", handle_get_animation)
+    http_server.route("go_to_start", handle_go_to_start)
     http_server.route("play", handle_play)
     http_server.route("is_playing", handle_is_playing)
 
@@ -192,6 +193,13 @@ def handle_get_animation(request=None):
     return succ(utils.get_animation_details())
 
 
+def handle_go_to_start():
+    doc = c4d.documents.GetActiveDocument()
+    doc.SetTime(doc.GetMinTime())
+    c4d.EventAdd()
+    return succ()
+
+
 def handle_play(request=None):
     """跳转到第一帧并开始单次播放。"""
     doc = documents.GetActiveDocument()
@@ -202,8 +210,6 @@ def handle_play(request=None):
         doc.SetLoopMaxTime(real_max)
     # 设置单次播放
     c4d.CallCommand(12426)
-    # 跳转到第一帧
-    c4d.CallCommand(12501)
     # 播放
     c4d.CallCommand(12412)
     return succ()
