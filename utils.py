@@ -8,7 +8,25 @@ import c4d
 from c4d import documents
 
 
+def _get_active_document():
+    """返回当前活动文档，不存在时抛出异常。"""
+    doc = documents.GetActiveDocument()
+    if doc is None:
+        raise RuntimeError("当前没有激活的文档")
+    return doc
+
+
+def _get_active_base_draw():
+    """返回当前活动视图，不存在时抛出异常。"""
+    doc = _get_active_document()
+    base_draw = doc.GetActiveBaseDraw()
+    if base_draw is None:
+        raise RuntimeError("当前没有可用的活动视图")
+    return doc, base_draw
+
+
 def open_project(p):
+    """打开指定工程文件并将其切换为当前活动文档。"""
     try:
         p = os.path.expanduser(p)
         p = os.path.normpath(p)
@@ -35,15 +53,13 @@ def open_project(p):
     if prev and prev != doc:
         documents.KillDocument(prev)
     c4d.EventAdd()
+    return {"opened": p}
 
 
 
 def set_active_view_clipping(near=0, far=sys.maxint):
     """设置当前文档工程设置中的视图近裁剪与远裁剪范围，单位为厘米。"""
-    doc = documents.GetActiveDocument()
-    if doc is None:
-        raise RuntimeError("当前没有激活的文档")
-
+    doc = _get_active_document()
     near = _as_float(near, 0)
     far = _as_float(far, sys.maxint)
 
@@ -67,12 +83,7 @@ def set_active_view_clipping(near=0, far=sys.maxint):
 
 def center_model_in_active_view():
     """若场景存在摄像机则切入摄像机视角，否则对几何体执行居中显示。"""
-    doc = documents.GetActiveDocument()
-
-    base_draw = doc.GetActiveBaseDraw()
-    if base_draw is None:
-        raise RuntimeError("当前没有可用的活动视图")
-
+    doc, base_draw = _get_active_base_draw()
     cameras = get_all_cameras()
     if cameras:
         camera = cameras[0]
@@ -100,12 +111,17 @@ def set_layout(layout_name):
     """加载指定的布局文件并刷新 Cinema 4D 界面。"""
     layout_path, searched_dirs = _find_layout_file(layout_name)
     if not layout_path:
-        raise IOError("layout-not-found: {}".format(",".join(searched_dirs)))
+        if searched_dirs:
+            raise IOError(
+                "未找到布局文件: %s，已搜索目录: %s"
+                % (layout_name, ", ".join(searched_dirs))
+            )
+        raise IOError("未找到布局文件: %s" % layout_name)
 
     documents.LoadFile(layout_path)
 
     c4d.EventAdd()
-    return layout_path
+    return {"layoutName": layout_name, "layoutPath": layout_path}
 
 
 DISPLAY_MODE_MAP = {
@@ -119,26 +135,21 @@ DISPLAY_MODE_MAP = {
 
 def set_active_view_display_mode(display_mode_name):
     """设置当前活动视图的显示模式。"""
-    doc = documents.GetActiveDocument()
-    if doc is None:
-        raise RuntimeError("当前没有激活的文档")
-
-    base_draw = doc.GetActiveBaseDraw()
-    if base_draw is None:
-        raise RuntimeError("当前没有可用的活动视图")
-
+    _, base_draw = _get_active_base_draw()
     display_mode_name = str(display_mode_name).strip()
-
 
     mode = DISPLAY_MODE_MAP.get(display_mode_name)
     if mode is None:
-        raise ValueError(display_mode_name)
+        raise ValueError(
+            "不支持的显示模式: %s，可选值为: %s"
+            % (display_mode_name, "、".join(sorted(DISPLAY_MODE_MAP.keys())))
+        )
 
     base_draw[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = mode
     c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
 
     c4d.EventAdd()
-    return mode
+    return {"displayMode": mode, "displayModeName": display_mode_name}
 
 
 
@@ -188,33 +199,36 @@ def get_animation_details():
 
 def set_joint_visibility(value):
     """批量设置所有关节对象在编辑器中的可见性。"""
-    doc = documents.GetActiveDocument()
+    count = 0
     for obj in get_all_joints():
         obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = value
+        count += 1
     c4d.EventAdd()
+    return count
 
 
 def set_polygon_visibility(value):
     """批量设置所有多边形对象在编辑器中的可见性。"""
-    doc = documents.GetActiveDocument()
+    count = 0
     for obj in get_all_polygons():
         obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = value
+        count += 1
     c4d.EventAdd()
+    return count
 
 
 def enabel_joint_display_filter(value):
     """设置当前活动视图中的关节显示过滤器状态。"""
-    doc = documents.GetActiveDocument()
-    bd = doc.GetActiveBaseDraw()
+    _, bd = _get_active_base_draw()
     # 控制关节显示过滤器的开关状态。
     bd[c4d.BASEDRAW_DISPLAYFILTER_JOINT] = value
     c4d.EventAdd()
+    return bool(value)
 
 
 def enabel_polygon_display_filter(value):
     """设置当前活动视图中的多边形相关显示过滤器状态。"""
-    doc = documents.GetActiveDocument()
-    bd = doc.GetActiveBaseDraw()
+    _, bd = _get_active_base_draw()
     # 同步控制多边形及相关对象在视图中的显示状态。
     bd[c4d.BASEDRAW_DISPLAYFILTER_POLYGON] = value
     bd[c4d.BASEDRAW_DISPLAYFILTER_SPLINE] = value
@@ -223,14 +237,13 @@ def enabel_polygon_display_filter(value):
     bd[c4d.DISPLAYFILTER_MULTIAXIS] = value
 
     c4d.EventAdd()
+    return bool(value)
 
 
 
 def select_all_weight_tags(is_select=True):
     """批量选中或取消选中文档中的权重相关标签，并返回处理数量。"""
-    doc = documents.GetActiveDocument()
-    if doc is None:
-        return 0
+    _get_active_document()
 
     # 收集可能存在的权重标签类型，兼容旧版本中缺失常量的情况。
     weight_tag_ids = []
@@ -267,6 +280,64 @@ def select_all_weight_tags(is_select=True):
     return count
 
 
+def show_joint(is_show=True):
+    """显示或隐藏当前文档中的关节对象，并同步视图过滤器。"""
+    is_show = _as_bool(is_show, True)
+    visibility = c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF
+    joint_count = set_joint_visibility(visibility)
+    enabel_joint_display_filter(is_show)
+    return {"isShow": is_show, "jointCount": joint_count}
+
+
+def show_polygon(is_show=True):
+    """显示或隐藏当前文档中的多边形对象，并同步视图过滤器。"""
+    is_show = _as_bool(is_show, True)
+    visibility = c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF
+    polygon_count = set_polygon_visibility(visibility)
+    enabel_polygon_display_filter(is_show)
+    return {"isShow": is_show, "polygonCount": polygon_count}
+
+
+def show_weight(is_select=False):
+    """选中或取消选中当前文档中的权重相关标签。"""
+    is_select = _as_bool(is_select, False)
+    tag_count = select_all_weight_tags(is_select)
+    return {"isSelect": is_select, "tagCount": tag_count}
+
+
+def go_to_start():
+    """将当前活动文档时间跳转到起始帧。"""
+    doc = _get_active_document()
+    doc.SetTime(doc.GetMinTime())
+    c4d.EventAdd()
+    return {"frame": doc.GetMinTime().GetFrame(doc.GetFps())}
+
+
+def play_once_from_start():
+    """将时间范围重置为完整区间，并从起始帧开始单次播放。"""
+    doc = _get_active_document()
+    min_time = doc.GetMinTime()
+    max_time = doc.GetMaxTime()
+    doc.SetTime(min_time)
+    doc.SetLoopMinTime(min_time)
+    doc.SetLoopMaxTime(max_time)
+
+    # 设置单次播放并开始播放。
+    c4d.CallCommand(12426)
+    c4d.CallCommand(12412)
+    c4d.EventAdd()
+    return {
+        "isPlaying": True,
+        "startFrame": min_time.GetFrame(doc.GetFps()),
+        "endFrame": max_time.GetFrame(doc.GetFps()),
+    }
+
+
+def is_playing():
+    """返回当前工程是否处于播放状态。"""
+    return {"isPlaying": bool(c4d.IsCommandChecked(12412))}
+
+
 
 
 
@@ -281,7 +352,7 @@ def get_all_cameras():
 
 def get_all_objects():
     """返回指定文档或当前活动文档中的全部对象列表。"""
-    doc = documents.GetActiveDocument()
+    doc = _get_active_document()
     res = []
     roots = doc.GetObjects()
 
@@ -657,5 +728,3 @@ def _find_layout_file(layout_name):
             pass
 
     return None, searched_dirs
-
-

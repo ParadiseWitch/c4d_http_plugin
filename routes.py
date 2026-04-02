@@ -1,15 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-路由配置与业务处理函数模块。
+"""路由配置与业务处理函数模块。"""
 
-插件层仅在此处注册业务路由与对应的处理逻辑。
-"""
-
-import c4d
-import json
-import os
 import sys
-from c4d import documents
+
 import utils
 
 
@@ -49,10 +42,9 @@ def handle_open_project(request=None):
     if not p:
         return erro("缺少工程文件路径参数 path")
     try:
-        utils.open_project(p)
-    except Exception as e:
-        return erro(str(e))
-    return succ({"opened": p})
+        return succ(utils.open_project(p))
+    except Exception as exc:
+        return erro(str(exc))
 
 
 def handle_set_layout(request=None):
@@ -61,12 +53,9 @@ def handle_set_layout(request=None):
     if not layout_name:
         return erro("缺少布局名称参数 layoutName")
     try:
-        layout_path = utils.set_layout(layout_name)
-    except IOError:
-        return erro("未找到布局文件: %s" % layout_name)
+        return succ(utils.set_layout(layout_name))
     except Exception as exc:
-        return erro("加载布局失败: %s" % str(exc))
-    return succ({"layoutName": layout_name, "layoutPath": layout_path})
+        return erro(str(exc))
 
 
 def handle_set_display_mode(request=None):
@@ -75,80 +64,73 @@ def handle_set_display_mode(request=None):
     if not display_mode:
         return erro("缺少显示模式参数 displayMode")
     try:
-        mode = utils.set_active_view_display_mode(display_mode)
-    except ValueError:
-        return erro(
-            "不支持的显示模式: %s，可选值为: %s"
-            % (display_mode, "、".join(sorted(utils.DISPLAY_MODE_MAP.keys())))
-        )
+        return succ(utils.set_active_view_display_mode(display_mode))
     except Exception as exc:
         return erro(str(exc))
-    return succ({"displayMode": mode, "displayModeName": display_mode})
 
 
 def handle_get_joint(request=None):
     """查询当前文档中是否存在关节或骨骼对象。"""
-    joints = utils.get_all_joints()
-    return succ({"hasJoint": bool(joints)})
+    try:
+        return succ({"hasJoint": bool(utils.get_all_joints())})
+    except Exception as exc:
+        return erro(str(exc))
 
 
 def handle_get_animation(request=None):
     """查询当前文档是否包含动画数据。"""
-    return succ(utils.get_animation_details())
+    try:
+        return succ(utils.get_animation_details())
+    except Exception as exc:
+        return erro(str(exc))
 
 
 def handle_show_joint(request=None):
     """控制当前文档中所有关节对象在编辑器中的显示状态。"""
-    is_show = True
-    if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), True)
-    utils.set_joint_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
-    utils.enabel_joint_display_filter(is_show)
-    return succ({"visible": bool(is_show)})
+    is_show = request.get_param("isShow") if request is not None else True
+    try:
+        return succ(utils.show_joint(is_show))
+    except Exception as exc:
+        return erro(str(exc))
 
 
 def handle_show_polygon(request=None):
     """控制当前文档中所有多边形对象在编辑器中的显示状态。"""
-    is_show = True
-    if request is not None:
-        is_show = utils._as_bool(request.get_param("isShow"), True)
-    utils.set_polygon_visibility(c4d.OBJECT_ON if is_show else c4d.OBJECT_OFF)
-    utils.enabel_polygon_display_filter(is_show)
-    return succ({"visible": bool(is_show)})
+    is_show = request.get_param("isShow") if request is not None else True
+    try:
+        return succ(utils.show_polygon(is_show))
+    except Exception as exc:
+        return erro(str(exc))
 
 
 def handle_show_weight(request=None):
-    """显示权重影响"""
-    is_show = True
-    if request is not None:
-        is_show = utils._as_bool(request.get_param("isSelect"), False)
-    utils.select_all_weight_tags(is_show)
-    return succ({"visible": bool(is_show)})
+    """控制当前文档中权重相关标签的选中状态。"""
+    is_select = request.get_param("isSelect") if request is not None else False
+    try:
+        return succ(utils.show_weight(is_select))
+    except Exception as exc:
+        return erro(str(exc))
 
 
-def handle_go_to_start():
-    doc = c4d.documents.GetActiveDocument()
-    doc.SetTime(doc.GetMinTime())
-    c4d.EventAdd()
-    return succ()
+def handle_go_to_start(request=None):
+    """将当前活动文档跳转到起始帧。"""
+    try:
+        return succ(utils.go_to_start())
+    except Exception as exc:
+        return erro(str(exc))
 
 
 def handle_play(request=None):
     """跳转到第一帧并开始单次播放。"""
-    doc = documents.GetActiveDocument()
-    if doc is not None:
-        real_min = doc.GetMinTime()
-        real_max = doc.GetMaxTime()
-        doc.SetLoopMinTime(real_min)
-        doc.SetLoopMaxTime(real_max)
-    # 设置单次播放
-    c4d.CallCommand(12426)
-    # 播放
-    c4d.CallCommand(12412)
-    return succ()
+    try:
+        return succ(utils.play_once_from_start())
+    except Exception as exc:
+        return erro(str(exc))
 
 
 def handle_is_playing(request=None):
     """查询当前工程的是否正在播放。"""
-    is_playing = c4d.IsCommandChecked(12412)
-    return succ({"is_playing": is_playing})
+    try:
+        return succ(utils.is_playing())
+    except Exception as exc:
+        return erro(str(exc))
