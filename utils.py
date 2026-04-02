@@ -8,6 +8,106 @@ import c4d
 from c4d import documents
 
 
+def open_project(p):
+    try:
+        p = os.path.expanduser(p)
+        p = os.path.normpath(p)
+    except Exception:
+        pass
+    if not os.path.isfile(p.decode("utf-8")):
+        raise IOError("工程文件不存在: %s" % p)
+
+    flags = c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
+    
+    doc = documents.LoadDocument(p, flags)
+    if doc is None:
+        raise IOError("工程文件加载失败: %s" % p)
+
+    prev = documents.GetActiveDocument()
+    documents.InsertBaseDocument(doc)
+    documents.SetActiveDocument(doc)
+    # 设置视图裁剪
+    set_active_view_clipping()
+    # 居中模型
+    center_model_in_active_view()
+    # 设置单视图
+    c4d.CallCommand(13620)
+    if prev and prev != doc:
+        documents.KillDocument(prev)
+    c4d.EventAdd()
+
+
+
+def set_active_view_clipping(near=0, far=sys.maxint):
+    """设置当前文档工程设置中的视图近裁剪与远裁剪范围，单位为厘米。"""
+    doc = documents.GetActiveDocument()
+    if doc is None:
+        raise RuntimeError("当前没有激活的文档")
+
+    near = _as_float(near, 0)
+    far = _as_float(far, sys.maxint)
+
+    if near < 0:
+        raise ValueError("nearCm 不能小于 0")
+    if far < near:
+        raise ValueError("farCm 不能小于 nearCm")
+
+    doc[c4d.DOCUMENT_CLIPPING_PRESET] = c4d.DOCUMENT_CLIPPING_PRESET_CUSTOM
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_NEAR] = near
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_FAR] = far
+
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+
+    c4d.EventAdd()
+    return {"near": near, "far": far}
+
+
+def center_model_in_active_view():
+    """若场景存在摄像机则切入摄像机视角，否则对几何体执行居中显示。"""
+    doc = documents.GetActiveDocument()
+
+    base_draw = doc.GetActiveBaseDraw()
+    if base_draw is None:
+        raise RuntimeError("当前没有可用的活动视图")
+
+    cameras = get_all_cameras()
+    if cameras:
+        camera = cameras[0]
+        base_draw.SetSceneCamera(camera)
+        try:
+            c4d.DrawViews(
+                c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW
+            )
+        except Exception:
+            pass
+        c4d.EventAdd()
+        return {"mode": "camera", "cameraName": camera.GetName()}
+
+    base_draw.SetSceneCamera(None)
+    c4d.CallCommand(12148)  # Frame Geometry
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+    c4d.EventAdd()
+    return {"mode": "geometry"}
+
+
+def set_layout(layout_name):
+    """加载指定的布局文件并刷新 Cinema 4D 界面。"""
+    layout_path, searched_dirs = _find_layout_file(layout_name)
+    if not layout_path:
+        raise IOError("layout-not-found: {}".format(",".join(searched_dirs)))
+
+    documents.LoadFile(layout_path)
+
+    c4d.EventAdd()
+    return layout_path
+
+
 DISPLAY_MODE_MAP = {
     "光影着色": c4d.BASEDRAW_SDISPLAY_GOURAUD,
     "快速着色": c4d.BASEDRAW_SDISPLAY_QUICK,
@@ -15,6 +115,198 @@ DISPLAY_MODE_MAP = {
     "隐藏线条": c4d.BASEDRAW_SDISPLAY_HIDDENLINE,
     "线框": c4d.BASEDRAW_SDISPLAY_NOSHADING,
 }
+
+
+def set_active_view_display_mode(display_mode_name):
+    """设置当前活动视图的显示模式。"""
+    doc = documents.GetActiveDocument()
+    if doc is None:
+        raise RuntimeError("当前没有激活的文档")
+
+    base_draw = doc.GetActiveBaseDraw()
+    if base_draw is None:
+        raise RuntimeError("当前没有可用的活动视图")
+
+    display_mode_name = str(display_mode_name).strip()
+
+
+    mode = DISPLAY_MODE_MAP.get(display_mode_name)
+    if mode is None:
+        raise ValueError(display_mode_name)
+
+    base_draw[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = mode
+    c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+
+    c4d.EventAdd()
+    return mode
+
+
+
+def get_all_joints():
+    """返回当前文档中的所有关节或骨骼对象。"""
+    return find_objects_by_types((getattr(c4d, "Ojoint", 0), getattr(c4d, "Obone", 0)))
+
+
+def has_animation():
+    """检查当前文档是否存在可识别的动画内容。"""
+    return get_animation_details().get("hasAnimation", False)
+
+
+
+def get_animation_details():
+    """返回当前文档中的关键帧动画命中详情。"""
+    doc = documents.GetActiveDocument()
+    animated_nodes = []
+    for node in _iter_animatables():
+        try:
+            tracks = []
+            for track in node.GetCTracks() or []:
+                key_count = _get_track_key_count(track)
+                if key_count > 1:
+                    track_info = _get_track_description(track)
+                    track_info["keyCount"] = key_count
+                    track_info["keys"] = _get_track_keys(track, doc)
+                    tracks.append(track_info)
+            if tracks:
+                animated_nodes.append(
+                    {
+                        "category": _get_node_category(node),
+                        "typeName": _get_node_type_name(node),
+                        "name": _get_node_name(node),
+                        "trackCount": len(tracks),
+                        "tracks": tracks,
+                    }
+                )
+        except Exception:
+            pass
+    return {
+        "hasAnimation": bool(animated_nodes),
+        "animatedNodes": animated_nodes,
+    }
+
+
+
+def set_joint_visibility(value):
+    """批量设置所有关节对象在编辑器中的可见性。"""
+    doc = documents.GetActiveDocument()
+    for obj in get_all_joints():
+        obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = value
+    c4d.EventAdd()
+
+
+def set_polygon_visibility(value):
+    """批量设置所有多边形对象在编辑器中的可见性。"""
+    doc = documents.GetActiveDocument()
+    for obj in get_all_polygons():
+        obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = value
+    c4d.EventAdd()
+
+
+def enabel_joint_display_filter(value):
+    """设置当前活动视图中的关节显示过滤器状态。"""
+    doc = documents.GetActiveDocument()
+    bd = doc.GetActiveBaseDraw()
+    # 控制关节显示过滤器的开关状态。
+    bd[c4d.BASEDRAW_DISPLAYFILTER_JOINT] = value
+    c4d.EventAdd()
+
+
+def enabel_polygon_display_filter(value):
+    """设置当前活动视图中的多边形相关显示过滤器状态。"""
+    doc = documents.GetActiveDocument()
+    bd = doc.GetActiveBaseDraw()
+    # 同步控制多边形及相关对象在视图中的显示状态。
+    bd[c4d.BASEDRAW_DISPLAYFILTER_POLYGON] = value
+    bd[c4d.BASEDRAW_DISPLAYFILTER_SPLINE] = value
+    bd[c4d.BASEDRAW_DISPLAYFILTER_GENERATOR] = value
+    bd[c4d.DISPLAYFILTER_HYPERNURBS] = value
+    bd[c4d.DISPLAYFILTER_MULTIAXIS] = value
+
+    c4d.EventAdd()
+
+
+
+def select_all_weight_tags(is_select=True):
+    """批量选中或取消选中文档中的权重相关标签，并返回处理数量。"""
+    doc = documents.GetActiveDocument()
+    if doc is None:
+        return 0
+
+    # 收集可能存在的权重标签类型，兼容旧版本中缺失常量的情况。
+    weight_tag_ids = []
+    for name in ("Tweights", "Tvertexmap"):
+        tid = getattr(c4d, name, None)
+        if isinstance(tid, int) and tid:
+            weight_tag_ids.append(tid)
+
+    if not weight_tag_ids:
+        return 0
+
+    count = 0
+
+    # 仅处理匹配的权重标签，不影响其他类型的标签。
+    for obj in get_all_objects():
+        try:
+            for tag in obj.GetTags() or []:
+                try:
+                    tag_type = tag.GetType()
+                    for tid in weight_tag_ids:
+                        if tag_type == tid:
+                            if is_select:
+                                tag.SetBit(c4d.BIT_ACTIVE)
+                            else:
+                                tag.DelBit(c4d.BIT_ACTIVE)
+                            count += 1
+                            break
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    c4d.EventAdd()
+    return count
+
+
+
+
+
+def get_all_polygons():
+    """返回当前文档中的所有多边形对象。"""
+    return find_objects_by_types((getattr(c4d, "Opolygon", 0),))
+
+
+def get_all_cameras():
+    """返回当前文档中的所有摄像机对象。"""
+    return find_objects_by_types((getattr(c4d, "Ocamera", 0),))
+
+def get_all_objects():
+    """返回指定文档或当前活动文档中的全部对象列表。"""
+    doc = documents.GetActiveDocument()
+    res = []
+    roots = doc.GetObjects()
+
+    for r in roots:
+        for obj in iter_objects(r):
+            res.append(obj)
+    return res
+
+
+def find_objects_by_types(type_ids):
+    """按类型 ID 列表筛选并返回匹配的对象。"""
+    doc = documents.GetActiveDocument()
+    objs = get_all_objects()
+    matched = []
+    for obj in objs:
+        try:
+            obj_type = obj.GetType()
+            for tid in type_ids:
+                if tid and obj_type == tid:
+                    matched.append(obj)
+                    break
+        except Exception:
+            pass
+    return matched
+
 
 
 def _as_bool(val, default=True):
@@ -50,50 +342,6 @@ def iter_objects(root):
     return result
 
 
-def get_all_objects():
-    """返回指定文档或当前活动文档中的全部对象列表。"""
-    doc = documents.GetActiveDocument()
-    res = []
-    roots = doc.GetObjects()
-
-    for r in roots:
-        for obj in iter_objects(r):
-            res.append(obj)
-    return res
-
-
-def find_objects_by_types(type_ids):
-    """按类型 ID 列表筛选并返回匹配的对象。"""
-    doc = documents.GetActiveDocument()
-    objs = get_all_objects()
-    matched = []
-    for obj in objs:
-        try:
-            obj_type = obj.GetType()
-            for tid in type_ids:
-                if tid and obj_type == tid:
-                    matched.append(obj)
-                    break
-        except Exception:
-            pass
-    return matched
-
-
-def get_all_joints():
-    """返回当前文档中的所有关节或骨骼对象。"""
-    return find_objects_by_types((getattr(c4d, "Ojoint", 0), getattr(c4d, "Obone", 0)))
-
-
-def get_all_polygons():
-    """返回当前文档中的所有多边形对象。"""
-    return find_objects_by_types((getattr(c4d, "Opolygon", 0),))
-
-
-def get_all_cameras():
-    """返回当前文档中的所有摄像机对象。"""
-    return find_objects_by_types((getattr(c4d, "Ocamera", 0),))
-
-
 def _iter_tags():
     """遍历文档中所有对象挂载的标签。"""
     tags = []
@@ -103,6 +351,7 @@ def _iter_tags():
         except Exception:
             pass
     return tags
+
 
 
 def _iter_materials():
@@ -329,281 +578,7 @@ def _get_track_keys(track, doc):
     return keys
 
 
-def get_animation_details():
-    """返回当前文档中的关键帧动画命中详情。"""
-    doc = documents.GetActiveDocument()
-    animated_nodes = []
-    for node in _iter_animatables():
-        try:
-            tracks = []
-            for track in node.GetCTracks() or []:
-                key_count = _get_track_key_count(track)
-                if key_count > 1:
-                    track_info = _get_track_description(track)
-                    track_info["keyCount"] = key_count
-                    track_info["keys"] = _get_track_keys(track, doc)
-                    tracks.append(track_info)
-            if tracks:
-                animated_nodes.append(
-                    {
-                        "category": _get_node_category(node),
-                        "typeName": _get_node_type_name(node),
-                        "name": _get_node_name(node),
-                        "trackCount": len(tracks),
-                        "tracks": tracks,
-                    }
-                )
-        except Exception:
-            pass
-    return {
-        "hasAnimation": bool(animated_nodes),
-        "animatedNodes": animated_nodes,
-    }
 
-
-def _has_type_match(nodes, type_ids):
-    """检查节点集合中是否存在任意匹配指定类型 ID 的节点。"""
-    valid_type_ids = [tid for tid in type_ids if isinstance(tid, int) and tid]
-    if not valid_type_ids:
-        return False
-
-    for node in nodes:
-        try:
-            node_type = node.GetType()
-            for tid in valid_type_ids:
-                if node_type == tid:
-                    return True
-        except Exception:
-            pass
-    return False
-
-
-def _has_simulation_animation():
-    """检查文档是否包含模拟类动画对象、标签或粒子系统。"""
-    doc = documents.GetActiveDocument()
-
-    object_type_names = (
-        "Oparticle",
-        "Oemitter",
-        "Oattractor",
-        "Odeflector",
-        "Owind",
-        "Oturbulence",
-        "Ofriction",
-        "Orotation",
-        "Ogravity",
-        "Ocollision",
-        "Obodycapture",
-        "Oconnector",
-        "Opyrocluster",
-        "Ometaball",
-        "Ovolume",
-    )
-    tag_type_names = (
-        "Tpointcache",
-        "Tdynamicsbody",
-        "Tcolliderbody",
-        "Tsoftbody",
-        "Tcloth",
-        "Tclothbelt",
-        "Tclothcollider",
-        "Tcmotion",
-        "Tca",
-        "Tcacheproxytag",
-        "Tfluid",
-    )
-
-    object_type_ids = [getattr(c4d, name, 0) for name in object_type_names]
-    tag_type_ids = [getattr(c4d, name, 0) for name in tag_type_names]
-
-    if _has_type_match(get_all_objects(), object_type_ids):
-        return True
-
-    if _has_type_match(_iter_tags(), tag_type_ids):
-        return True
-
-    try:
-        particle_system = doc.GetParticleSystem()
-        if particle_system:
-            return True
-    except Exception:
-        pass
-
-    return False
-
-
-def has_animation():
-    """检查当前文档是否存在可识别的动画内容。"""
-    return get_animation_details().get("hasAnimation", False)
-
-
-def set_joint_visibility(value):
-    """批量设置所有关节对象在编辑器中的可见性。"""
-    doc = documents.GetActiveDocument()
-    for obj in get_all_joints():
-        try:
-            obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = value
-        except Exception:
-            pass
-    c4d.EventAdd()
-
-
-def set_polygon_visibility(value):
-    """批量设置所有多边形对象在编辑器中的可见性。"""
-    doc = documents.GetActiveDocument()
-    for obj in get_all_polygons():
-        try:
-            obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = value
-        except Exception:
-            pass
-    c4d.EventAdd()
-
-
-def enabel_joint_display_filter(value):
-    """设置当前活动视图中的关节显示过滤器状态。"""
-    doc = documents.GetActiveDocument()
-    bd = doc.GetActiveBaseDraw()
-    # 控制关节显示过滤器的开关状态。
-    bd[c4d.BASEDRAW_DISPLAYFILTER_JOINT] = value
-    c4d.EventAdd()
-
-
-def enabel_polygon_display_filter(value):
-    """设置当前活动视图中的多边形相关显示过滤器状态。"""
-    doc = documents.GetActiveDocument()
-    bd = doc.GetActiveBaseDraw()
-    # 同步控制多边形及相关对象在视图中的显示状态。
-    bd[c4d.BASEDRAW_DISPLAYFILTER_POLYGON] = value
-    bd[c4d.BASEDRAW_DISPLAYFILTER_SPLINE] = value
-    bd[c4d.BASEDRAW_DISPLAYFILTER_GENERATOR] = value
-    bd[c4d.DISPLAYFILTER_HYPERNURBS] = value
-    bd[c4d.DISPLAYFILTER_MULTIAXIS] = value
-
-    c4d.EventAdd()
-
-
-def set_active_view_display_mode(display_mode_name):
-    """设置当前活动视图的显示模式。"""
-    doc = documents.GetActiveDocument()
-    if doc is None:
-        raise RuntimeError("当前没有激活的文档")
-
-    base_draw = doc.GetActiveBaseDraw()
-    if base_draw is None:
-        raise RuntimeError("当前没有可用的活动视图")
-
-    display_mode_name = str(display_mode_name).strip()
-    mode = DISPLAY_MODE_MAP.get(display_mode_name)
-    if mode is None:
-        raise ValueError(display_mode_name)
-
-    base_draw[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = mode
-    try:
-        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
-    except Exception:
-        pass
-
-    c4d.EventAdd()
-    return mode
-
-
-def set_active_view_clipping(near=0, far=sys.maxint):
-    """设置当前文档工程设置中的视图近裁剪与远裁剪范围，单位为厘米。"""
-    doc = documents.GetActiveDocument()
-    if doc is None:
-        raise RuntimeError("当前没有激活的文档")
-
-    near = _as_float(near, 0)
-    far = _as_float(far, sys.maxint)
-
-    if near < 0:
-        raise ValueError("nearCm 不能小于 0")
-    if far < near:
-        raise ValueError("farCm 不能小于 nearCm")
-
-    doc[c4d.DOCUMENT_CLIPPING_PRESET] = c4d.DOCUMENT_CLIPPING_PRESET_CUSTOM
-    doc[c4d.DOCUMENT_CLIPPING_PRESET_NEAR] = near
-    doc[c4d.DOCUMENT_CLIPPING_PRESET_FAR] = far
-
-    try:
-        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
-    except Exception:
-        pass
-
-    c4d.EventAdd()
-    return {"near": near, "far": far}
-
-
-def center_model_in_active_view():
-    """若场景存在摄像机则切入摄像机视角，否则对几何体执行居中显示。"""
-    doc = documents.GetActiveDocument()
-
-    base_draw = doc.GetActiveBaseDraw()
-    if base_draw is None:
-        raise RuntimeError("当前没有可用的活动视图")
-
-    cameras = get_all_cameras()
-    if cameras:
-        camera = cameras[0]
-        base_draw.SetSceneCamera(camera)
-        try:
-            c4d.DrawViews(
-                c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW
-            )
-        except Exception:
-            pass
-        c4d.EventAdd()
-        return {"mode": "camera", "cameraName": camera.GetName()}
-
-    base_draw.SetSceneCamera(None)
-    c4d.CallCommand(12148)  # Frame Geometry
-    try:
-        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
-    except Exception:
-        pass
-    c4d.EventAdd()
-    return {"mode": "geometry"}
-
-
-def select_all_weight_tags(is_select=True):
-    """批量选中或取消选中文档中的权重相关标签，并返回处理数量。"""
-    doc = documents.GetActiveDocument()
-    if doc is None:
-        return 0
-
-    # 收集可能存在的权重标签类型，兼容旧版本中缺失常量的情况。
-    weight_tag_ids = []
-    for name in ("Tweights", "Tvertexmap"):
-        tid = getattr(c4d, name, None)
-        if isinstance(tid, int) and tid:
-            weight_tag_ids.append(tid)
-
-    if not weight_tag_ids:
-        return 0
-
-    count = 0
-
-    # 仅处理匹配的权重标签，不影响其他类型的标签。
-    for obj in get_all_objects():
-        try:
-            for tag in obj.GetTags() or []:
-                try:
-                    tag_type = tag.GetType()
-                    for tid in weight_tag_ids:
-                        if tag_type == tid:
-                            if is_select:
-                                tag.SetBit(c4d.BIT_ACTIVE)
-                            else:
-                                tag.DelBit(c4d.BIT_ACTIVE)
-                            count += 1
-                            break
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
-    c4d.EventAdd()
-    return count
 
 
 def _iter_existing_layout_dirs():
@@ -684,13 +659,3 @@ def _find_layout_file(layout_name):
     return None, searched_dirs
 
 
-def set_layout(layout_name):
-    """加载指定的布局文件并刷新 Cinema 4D 界面。"""
-    layout_path, searched_dirs = _find_layout_file(layout_name)
-    if not layout_path:
-        raise IOError("layout-not-found: {}".format(",".join(searched_dirs)))
-
-    documents.LoadFile(layout_path)
-
-    c4d.EventAdd()
-    return layout_path
