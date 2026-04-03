@@ -36,7 +36,6 @@ def open_project(p):
         raise IOError("工程文件不存在: %s" % p)
 
     flags = c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
-    
     doc = documents.LoadDocument(p, flags)
     if doc is None:
         raise IOError("工程文件加载失败: %s" % p)
@@ -56,57 +55,6 @@ def open_project(p):
     return {"opened": p}
 
 
-
-def set_active_view_clipping(near=0, far=sys.maxint):
-    """设置当前文档工程设置中的视图近裁剪与远裁剪范围，单位为厘米。"""
-    doc = _get_active_document()
-    near = _as_float(near, 0)
-    far = _as_float(far, sys.maxint)
-
-    if near < 0:
-        raise ValueError("nearCm 不能小于 0")
-    if far < near:
-        raise ValueError("farCm 不能小于 nearCm")
-
-    doc[c4d.DOCUMENT_CLIPPING_PRESET] = c4d.DOCUMENT_CLIPPING_PRESET_CUSTOM
-    doc[c4d.DOCUMENT_CLIPPING_PRESET_NEAR] = near
-    doc[c4d.DOCUMENT_CLIPPING_PRESET_FAR] = far
-
-    try:
-        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
-    except Exception:
-        pass
-
-    c4d.EventAdd()
-    return {"near": near, "far": far}
-
-
-def center_model_in_active_view():
-    """若场景存在摄像机则切入摄像机视角，否则对几何体执行居中显示。"""
-    doc, base_draw = _get_active_base_draw()
-    cameras = get_all_cameras()
-    if cameras:
-        camera = cameras[0]
-        base_draw.SetSceneCamera(camera)
-        try:
-            c4d.DrawViews(
-                c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW
-            )
-        except Exception:
-            pass
-        c4d.EventAdd()
-        return {"mode": "camera", "cameraName": camera.GetName()}
-
-    base_draw.SetSceneCamera(None)
-    c4d.CallCommand(12148)  # Frame Geometry
-    try:
-        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
-    except Exception:
-        pass
-    c4d.EventAdd()
-    return {"mode": "geometry"}
-
-
 def set_layout(layout_name):
     """加载指定的布局文件并刷新 Cinema 4D 界面。"""
     layout_path, searched_dirs = _find_layout_file(layout_name)
@@ -122,6 +70,45 @@ def set_layout(layout_name):
 
     c4d.EventAdd()
     return {"layoutName": layout_name, "layoutPath": layout_path}
+
+def get_all_joints():
+    """返回当前文档中的所有关节或骨骼对象。"""
+    return find_objects_by_types(
+        (getattr(c4d, "Ojoint", 0), getattr(c4d, "Obone", 0))
+    )
+
+
+def has_animation():
+    """检查当前文档是否存在可识别的动画内容。"""
+    doc = _get_active_document()
+    nodes = [doc]
+
+    # 对象、标签、材质都可能挂载动画轨道，命中任意关键帧即可认为存在动画。
+    for obj in get_all_objects():
+        nodes.append(obj)
+        try:
+            nodes.extend(obj.GetTags() or [])
+        except Exception:
+            pass
+
+    material = doc.GetFirstMaterial()
+    while material:
+        nodes.append(material)
+        material = material.GetNext()
+
+    for node in nodes:
+        try:
+            for track in node.GetCTracks() or []:
+                try:
+                    curve = track.GetCurve()
+                    if curve is not None and int(curve.GetKeyCount()) > 0:
+                        return True
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    return False
 
 
 DISPLAY_MODE_MAP = {
@@ -150,45 +137,6 @@ def set_active_view_display_mode(display_mode_name):
 
     c4d.EventAdd()
     return {"displayMode": mode, "displayModeName": display_mode_name}
-
-
-
-def get_all_joints():
-    """返回当前文档中的所有关节或骨骼对象。"""
-    return find_objects_by_types((getattr(c4d, "Ojoint", 0), getattr(c4d, "Obone", 0)))
-
-
-def has_animation():
-    """检查当前文档是否存在可识别的动画内容。"""
-    doc = _get_active_document()
-    nodes = [doc]
-
-    for obj in get_all_objects():
-        nodes.append(obj)
-        try:
-            nodes.extend(obj.GetTags() or [])
-        except Exception:
-            pass
-
-    material = doc.GetFirstMaterial()
-    while material:
-        nodes.append(material)
-        material = material.GetNext()
-
-    for node in nodes:
-        try:
-            for track in node.GetCTracks() or []:
-                try:
-                    curve = track.GetCurve()
-                    if curve is not None and int(curve.GetKeyCount()) > 0:
-                        return True
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
-    return False
-
 
 
 def set_joint_visibility(value):
@@ -232,7 +180,6 @@ def enabel_polygon_display_filter(value):
 
     c4d.EventAdd()
     return bool(value)
-
 
 
 def select_all_weight_tags(is_select=True):
@@ -332,7 +279,54 @@ def is_playing():
     return {"isPlaying": bool(c4d.IsCommandChecked(12412))}
 
 
+def set_active_view_clipping(near=0, far=sys.maxint):
+    """设置当前文档工程设置中的视图近裁剪与远裁剪范围，单位为厘米。"""
+    doc = _get_active_document()
+    near = _as_float(near, 0)
+    far = _as_float(far, sys.maxint)
 
+    if near < 0:
+        raise ValueError("nearCm 不能小于 0")
+    if far < near:
+        raise ValueError("farCm 不能小于 nearCm")
+
+    doc[c4d.DOCUMENT_CLIPPING_PRESET] = c4d.DOCUMENT_CLIPPING_PRESET_CUSTOM
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_NEAR] = near
+    doc[c4d.DOCUMENT_CLIPPING_PRESET_FAR] = far
+
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+
+    c4d.EventAdd()
+    return {"near": near, "far": far}
+
+
+def center_model_in_active_view():
+    """若场景存在摄像机则切入摄像机视角，否则对几何体执行居中显示。"""
+    doc, base_draw = _get_active_base_draw()
+    cameras = get_all_cameras()
+    if cameras:
+        camera = cameras[0]
+        base_draw.SetSceneCamera(camera)
+        try:
+            c4d.DrawViews(
+                c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW
+            )
+        except Exception:
+            pass
+        c4d.EventAdd()
+        return {"mode": "camera", "cameraName": camera.GetName()}
+
+    base_draw.SetSceneCamera(None)
+    c4d.CallCommand(12148)  # Frame Geometry
+    try:
+        c4d.DrawViews(c4d.DRAWFLAGS_ONLY_ACTIVE_VIEW | c4d.DRAWFLAGS_FORCEFULLREDRAW)
+    except Exception:
+        pass
+    c4d.EventAdd()
+    return {"mode": "geometry"}
 
 
 def get_all_polygons():
@@ -344,16 +338,17 @@ def get_all_cameras():
     """返回当前文档中的所有摄像机对象。"""
     return find_objects_by_types((getattr(c4d, "Ocamera", 0),))
 
+
 def get_all_objects():
     """返回指定文档或当前活动文档中的全部对象列表。"""
     doc = _get_active_document()
-    res = []
+    objects = []
     roots = doc.GetObjects()
 
-    for r in roots:
-        for obj in iter_objects(r):
-            res.append(obj)
-    return res
+    for root in roots:
+        for obj in iter_objects(root):
+            objects.append(obj)
+    return objects
 
 
 def find_objects_by_types(type_ids):
@@ -370,7 +365,6 @@ def find_objects_by_types(type_ids):
         except Exception:
             pass
     return matched
-
 
 
 def _as_bool(val, default=True):
@@ -404,9 +398,6 @@ def iter_objects(root):
             result.extend(iter_objects(child))
         op = op.GetNext()
     return result
-
-
-
 
 
 def _iter_existing_layout_dirs():

@@ -14,8 +14,8 @@ def register(http_server):
     """注册所有对外暴露的 HTTP 路由。"""
     http_server.route("open_project", handle_open_project)
     http_server.route("set_layout", handle_set_layout)
-    http_server.route("get_joint", handle_get_joint)
-    http_server.route("get_animation", handle_get_animation)
+    http_server.route("has_joint", handle_has_joint)
+    http_server.route("has_animation", handle_has_animation)
     http_server.route("set_display_mode", handle_set_display_mode)
     http_server.route("show_joint", handle_show_joint)
     http_server.route("show_polygon", handle_show_polygon)
@@ -33,7 +33,6 @@ def succ(data=None):
 def erro(msg):
     """生成统一的失败返回结构。"""
     return {"status": "erro", "msg": msg}
-
 
 
 def handle_open_project(request=None):
@@ -69,7 +68,7 @@ def handle_set_display_mode(request=None):
         return erro(str(exc))
 
 
-def handle_get_joint(request=None):
+def handle_has_joint(request=None):
     """查询当前文档中是否存在关节或骨骼对象。"""
     try:
         return succ({"hasJoint": bool(utils.get_all_joints())})
@@ -77,7 +76,7 @@ def handle_get_joint(request=None):
         return erro(str(exc))
 
 
-def handle_get_animation(request=None):
+def handle_has_animation(request=None):
     """查询当前文档是否包含动画数据。"""
     try:
         return succ({"hasAnimation": utils.has_animation()})
@@ -105,9 +104,9 @@ def handle_show_polygon(request=None):
 
 def handle_show_weight(request=None):
     """控制当前文档中权重相关标签的选中状态。"""
-    is_select = request.get_param("isSelect") if request is not None else False
+    is_show = request.get_param("isShow") if request is not None else False
     try:
-        return succ(utils.show_weight(is_select))
+        return succ(utils.show_weight(is_show))
     except Exception as exc:
         return erro(str(exc))
 
